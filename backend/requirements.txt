@@ -1,0 +1,16 @@
+fastapi>=0.110.0
+uvicorn>=0.28.0
+opencv-python>=4.9.0
+yt-dlp>=2024.3.10
+google-genai>=0.1.0
+faster-whisper>=1.0.0
+google-api-python-client>=2.120.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+apscheduler>=3.10.4
+python-multipart>=0.0.9
+aiofiles>=23.2.1
+pydantic-settings>=2.2.1
+sqlalchemy>=2.0.28
+requests>=2.31.0
+numpy>=1.26.0
