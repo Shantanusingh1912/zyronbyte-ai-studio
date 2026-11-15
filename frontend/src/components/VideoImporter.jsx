@@ -107,7 +107,7 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
             }`}
           >
             <YoutubeIcon className="w-4 h-4 text-red-400" />
-            <span>YouTube / Livestream URL</span>
+            <span>Online Video URL (YouTube, Twitch, Kick, Web)</span>
           </button>
 
           <button
@@ -160,11 +160,11 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
-                  YouTube Video / Stream URL *
+                  Video / Stream Link (YouTube, Twitch, Kick, Twitter, etc.) *
                 </label>
                 <input
                   type="url"
-                  placeholder="https://www.youtube.com/watch?v=..."
+                  placeholder="https://www.youtube.com/watch?v=... or Twitch / Kick / Web link"
                   value={youtubeUrl}
                   onChange={(e) => setYoutubeUrl(e.target.value)}
                   className="w-full bg-[#0A0D15] border border-[#232B3E] rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -174,11 +174,11 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
 
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Video Label / Title (Optional)
+                  Custom Title (Optional — auto-fetched from link if left blank)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Apex Legends 20 Kill Livestream"
+                  placeholder="Leave blank to automatically use the video's original title"
                   value={videoTitle}
                   onChange={(e) => setVideoTitle(e.target.value)}
                   className="w-full bg-[#0A0D15] border border-[#232B3E] rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"

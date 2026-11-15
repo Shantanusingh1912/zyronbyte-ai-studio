@@ -15,6 +15,12 @@ export const api = {
     return res.json();
   },
 
+  fetchVideoInfo: async (url) => {
+    const res = await fetch(`${API_BASE}/videos/fetch-info?url=${encodeURIComponent(url)}`);
+    if (!res.ok) throw new Error('Failed to fetch video preview');
+    return res.json();
+  },
+
   importVideo: async (data) => {
     const res = await fetch(`${API_BASE}/videos/import`, {
       method: 'POST',

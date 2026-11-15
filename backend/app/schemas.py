@@ -4,9 +4,10 @@ from datetime import datetime
 
 class VideoImportRequest(BaseModel):
     title: Optional[str] = None
-    source_type: str = "youtube"  # "youtube", "local"
+    source_type: str = "url"  # "url", "youtube", "local"
     source_url: Optional[str] = None
     local_file_path: Optional[str] = None
+    auto_start: Optional[bool] = False
 
 class VideoBatchImportRequest(BaseModel):
     items: List[VideoImportRequest]

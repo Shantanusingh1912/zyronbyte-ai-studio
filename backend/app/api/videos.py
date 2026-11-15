@@ -38,6 +38,14 @@ def get_videos(db: Session = Depends(get_db)):
         ))
     return results
 
+@router.get("/fetch-info")
+def fetch_video_info(url: str):
+    """Fetches video metadata (title, duration, thumbnail, author) from any video URL."""
+    if not url:
+        raise HTTPException(status_code=400, detail="url parameter is required")
+    info = downloader.fetch_video_info(url)
+    return info
+
 @router.get("/{video_id}", response_model=VideoResponse)
 def get_video(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
@@ -64,23 +72,40 @@ def get_video(video_id: int, db: Session = Depends(get_db)):
 
 @router.post("/import", response_model=VideoResponse)
 def import_video(req: VideoImportRequest, db: Session = Depends(get_db)):
-    """Imports video from a YouTube URL or a path on the local file system."""
-    if req.source_type == "youtube":
+    """Imports video from any video URL (YouTube, Twitch, Kick, Twitter, etc.) or a local path."""
+    is_url = req.source_url or req.source_type in ("youtube", "url", "twitch", "web")
+    
+    if is_url:
         if not req.source_url:
-            raise HTTPException(status_code=400, detail="source_url is required for YouTube imports")
+            raise HTTPException(status_code=400, detail="source_url is required for URL video imports")
         
-        # Create pending record; pipeline will download and inspect
+        # Pre-fetch video metadata if title wasn't provided
+        final_title = req.title
+        est_duration = 0.0
+        if not final_title:
+            try:
+                info = downloader.fetch_video_info(req.source_url)
+                final_title = info.get("title") or "Online Gaming Video"
+                est_duration = float(info.get("duration") or 0.0)
+            except Exception:
+                final_title = "Online Gaming Video"
+
         video = Video(
-            title=req.title or "YouTube Gaming Livestream",
-            source_type="youtube",
+            title=final_title or "Online Gaming Video",
+            source_type="url",
             source_url=req.source_url,
             file_path="",
+            duration=est_duration,
             status="PENDING",
-            current_step="Queued for download"
+            current_step="Queued for download & AI clipping"
         )
         db.add(video)
         db.commit()
         db.refresh(video)
+
+        if req.auto_start:
+            pipeline_runner.run_video_pipeline_async(video.id)
+
         return VideoResponse(
             id=video.id,
             title=video.title,
@@ -119,6 +144,10 @@ def import_video(req: VideoImportRequest, db: Session = Depends(get_db)):
             db.add(video)
             db.commit()
             db.refresh(video)
+
+            if req.auto_start:
+                pipeline_runner.run_video_pipeline_async(video.id)
+
             return VideoResponse(
                 id=video.id,
                 title=video.title,

@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import StatsOverview from './components/StatsOverview';
 import PipelineProgress from './components/PipelineProgress';
 import VideoList from './components/VideoList';
+import QuickUrlClipper from './components/QuickUrlClipper';
 import ClipGrid from './components/ClipGrid';
 import VideoImporter from './components/VideoImporter';
 import CustomCutModal from './components/CustomCutModal';
@@ -105,6 +106,9 @@ export default function App() {
 
         {/* Real-time Pipeline Progress (Visible when active) */}
         <PipelineProgress pipelineStatus={pipelineStatus} />
+
+        {/* 1-Click Fast URL Auto-Clipper Bar */}
+        <QuickUrlClipper onVideoImported={fetchData} />
 
         {/* Master Footage Library (Videos) */}
         <VideoList

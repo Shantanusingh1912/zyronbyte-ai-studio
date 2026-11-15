@@ -75,10 +75,25 @@ class PipelineRunner:
             video.progress = 10.0
             db.commit()
 
-            if video.source_type == "youtube" and not os.path.exists(video.file_path):
-                video.current_step = "Downloading YouTube Video"
+            if video.source_type in ("youtube", "url", "twitch", "web") and (not video.file_path or not os.path.exists(video.file_path)):
+                video.current_step = "Fetching & Downloading Video from URL"
+                video.progress = 5.0
                 db.commit()
-                dl_result = downloader.download_youtube_video(video.source_url)
+
+                def on_download_progress(d):
+                    if d.get('status') == 'downloading':
+                        total = d.get('total_bytes') or d.get('total_bytes_estimate') or 1
+                        downloaded = d.get('downloaded_bytes', 0)
+                        pct = min(100.0, (downloaded / max(1, total)) * 100.0)
+                        speed = d.get('speed') or 0
+                        speed_str = f"{speed / (1024*1024):.1f} MB/s" if speed > 1024*1024 else f"{speed / 1024:.0f} KB/s"
+                        video.current_step = f"Downloading Video: {pct:.1f}% ({speed_str})"
+                        video.progress = round(5.0 + (15.0 * (pct / 100.0)), 1)
+                        db.commit()
+
+                dl_result = downloader.download_video_from_url(video.source_url, progress_hook=on_download_progress)
+                if dl_result.get("title") and (not video.title or video.title in ("YouTube Gaming Livestream", "Online Gaming Video", "Pending Video URL")):
+                    video.title = dl_result["title"]
                 video.file_path = dl_result["file_path"]
                 video.duration = dl_result["duration"]
                 video.width = dl_result["width"]
