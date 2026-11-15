@@ -81,7 +81,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#06080F] text-slate-100 flex flex-col studio-grid-bg selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen apple-canvas text-zinc-100 flex flex-col selection:bg-amber-400 selection:text-black">
       {/* Navigation Bar */}
       <Navbar
         stats={stats}
@@ -96,34 +96,37 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 space-y-8">
         
-        {/* Editorial Studio Hero Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-white/[0.08] pb-5 pt-1">
+        {/* Apple & Samsung Galaxy AI Style Hero Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-white/10 pb-7 pt-2">
           <div>
-            <div className="flex items-center space-x-2 text-indigo-400 mb-1">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
-              <span className="studio-pill text-[10px] font-black tracking-widest text-indigo-400">
-                PRO AUTOMATION SYSTEM // EDITION 2026
+            <div className="flex items-center space-x-2.5 mb-2.5">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-400"></span>
+              </span>
+              <span className="text-[11px] font-extrabold tracking-[0.2em] text-cyan-400 uppercase">
+                STUDIO PRO // 2026 EDITION
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
-              Autonomous Video Clipping & Studio
+            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight font-sans">
+              Autonomous Video Clipping & <span className="galaxy-ai-text">Publishing Studio</span>
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
-              Turn long livestreams and gaming footage into viral 9:16 YouTube Shorts and Instagram Reels with synced animated subtitles and smart combat detection.
+            <p className="text-sm sm:text-base text-zinc-300 mt-2.5 max-w-2xl leading-relaxed">
+              Transform long livestreams and full gaming footage into high-energy 9:16 vertical Shorts and Reels with real-time combat audio peak detection and synced animated subtitles.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-end">
-            <span className="studio-pill text-[9px] font-bold px-2.5 py-1 rounded-lg bg-white/[0.04] text-slate-300 border border-white/[0.08]">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
+            <span className="text-[11px] font-bold px-3.5 py-1.5 rounded-full bg-white/10 text-white border border-white/15 backdrop-blur-xl shadow-sm">
               GEMINI 2.5 FLASH
             </span>
-            <span className="studio-pill text-[9px] font-bold px-2.5 py-1 rounded-lg bg-white/[0.04] text-slate-300 border border-white/[0.08]">
+            <span className="text-[11px] font-bold px-3.5 py-1.5 rounded-full bg-white/10 text-white border border-white/15 backdrop-blur-xl shadow-sm">
               FFMPEG 1080x1920
             </span>
-            <span className="studio-pill text-[9px] font-bold px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-              WHISPER AI SYNC
+            <span className="text-[11px] font-bold px-3.5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 backdrop-blur-xl shadow-sm shadow-amber-500/20">
+              ⚡ SMART COMBAT AI
             </span>
           </div>
         </div>
@@ -148,92 +151,118 @@ export default function App() {
           onRefresh={fetchData}
         />
 
-        {/* Generated Gaming Shorts & Reels (Clips Grid) */}
-        <div className="space-y-4 pt-4 border-t border-white/[0.06]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                <Scissors className="w-5 h-5" />
+        {/* AI Highlight Clips Section */}
+        <section className="space-y-4 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-400/30">
+                  9:16 VERTICAL SHOWCASE
+                </span>
               </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
-                  Generated Shorts & Reels Gallery
-                </h3>
-                <p className="text-xs text-slate-400">9:16 vertical edits ready for review and publishing</p>
-              </div>
-              <span className="studio-pill text-[10px] px-2.5 py-1 rounded-full bg-white/[0.04] text-slate-300 font-bold border border-white/[0.08]">
-                {clips.length} TOTAL
-              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                Generated Highlights Gallery
+              </h3>
+              <p className="text-xs text-zinc-400">
+                {selectedVideoId ? 'Displaying clips for selected video' : 'Displaying all generated shorts across games'}
+              </p>
             </div>
-            
+
             {selectedVideoId && (
               <button
                 onClick={() => setSelectedVideoId(null)}
-                className="studio-pill text-xs text-indigo-400 hover:text-indigo-300 font-bold px-3 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 transition"
+                className="text-xs font-bold text-cyan-400 hover:text-cyan-300 self-start sm:self-center px-3 py-1.5 rounded-full bg-white/5 border border-white/10 transition"
               >
-                Clear Video Filter ✕
+                Clear video filter ✕
               </button>
             )}
           </div>
 
           <ClipGrid
             clips={clips}
-            onPreviewClip={(clip) => setPreviewClip(clip)}
+            onPreviewClip={setPreviewClip}
             onRefresh={fetchData}
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
             selectedStatus={selectedStatus}
             onSelectStatus={setSelectedStatus}
           />
-        </div>
+        </section>
 
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/[0.08] py-6 px-6 text-center text-xs text-slate-500 bg-[#070A12]/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="font-semibold text-slate-400">ZyronByte AI Studio • Automated Gaming Shorts & Reels Publishing Platform</p>
-          <p className="studio-pill text-[10px] text-slate-500">Channel: ZyronByteYT • Powered by Google Gemini & FFmpeg</p>
+      {/* Studio Footer */}
+      <footer className="border-t border-white/10 mt-16 py-8 px-4 text-center text-xs text-zinc-300">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-2">
+            <span className="font-extrabold text-white">ZyronByte AI Studio</span>
+            <span>•</span>
+            <span>Channel: ZyronByteYT</span>
+          </div>
+          <div className="text-zinc-300">
+            Powered by Google Gemini 2.5 Flash, Whisper AI & FFmpeg
+          </div>
         </div>
       </footer>
 
       {/* Modals */}
-      <VideoImporter
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onImportSuccess={fetchData}
-      />
+      {isImportOpen && (
+        <VideoImporter
+          isOpen={isImportOpen}
+          onClose={() => setIsImportOpen(false)}
+          onImportSuccess={() => {
+            fetchData();
+            setIsImportOpen(false);
+          }}
+        />
+      )}
 
-      <CustomCutModal
-        isOpen={isCustomCutOpen}
-        onClose={() => setIsCustomCutOpen(false)}
-        videos={videos}
-        onCutSuccess={fetchData}
-      />
+      {isCustomCutOpen && (
+        <CustomCutModal
+          isOpen={isCustomCutOpen}
+          onClose={() => setIsCustomCutOpen(false)}
+          videos={videos}
+          onCutCreated={() => {
+            fetchData();
+            setIsCustomCutOpen(false);
+          }}
+        />
+      )}
 
-      <ClipPreviewModal
-        clip={previewClip}
-        isOpen={Boolean(previewClip)}
-        onClose={() => setPreviewClip(null)}
-        onRefresh={fetchData}
-      />
+      {previewClip && (
+        <ClipPreviewModal
+          clip={previewClip}
+          isOpen={Boolean(previewClip)}
+          onClose={() => setPreviewClip(null)}
+          onClipUpdated={() => {
+            fetchData();
+            setPreviewClip(null);
+          }}
+        />
+      )}
 
-      <SocialAccountsModal
-        isOpen={isSocialOpen}
-        onClose={() => setIsSocialOpen(false)}
-        onRefresh={fetchData}
-      />
+      {isSocialOpen && (
+        <SocialAccountsModal
+          isOpen={isSocialOpen}
+          onClose={() => setIsSocialOpen(false)}
+          onAccountsUpdated={fetchData}
+        />
+      )}
 
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onRefresh={fetchData}
-      />
+      {isSettingsOpen && (
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          onSettingsUpdated={fetchData}
+        />
+      )}
 
-      <LogsViewer
-        isOpen={isLogsOpen}
-        onClose={() => setIsLogsOpen(false)}
-      />
+      {isLogsOpen && (
+        <LogsViewer
+          isOpen={isLogsOpen}
+          onClose={() => setIsLogsOpen(false)}
+        />
+      )}
 
     </div>
   );

@@ -6,13 +6,13 @@ import { api } from '../api';
 export default function VideoList({ videos, onSelectVideo, selectedVideoId, onRefresh }) {
   if (!videos || videos.length === 0) {
     return (
-      <div className="studio-card rounded-3xl p-12 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center mx-auto mb-3 text-slate-500">
-          <Film className="w-8 h-8 text-indigo-400" />
+      <div className="apple-card rounded-3xl p-14 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/15 flex items-center justify-center mx-auto mb-4 text-cyan-400">
+          <Film className="w-8 h-8" />
         </div>
-        <h4 className="text-sm font-bold text-slate-200">No Gaming Footage Imported Yet</h4>
+        <h4 className="text-base font-bold text-white">No Gaming Footage Imported Yet</h4>
         <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-          Paste a video link in the bar above or click "Import" to add long YouTube livestreams, OBS captures, or gameplay recordings.
+          Paste a video link in the bar above to automatically fetch and clip livestreams or long gameplays.
         </p>
       </div>
     );
@@ -47,27 +47,27 @@ export default function VideoList({ videos, onSelectVideo, selectedVideoId, onRe
   };
 
   return (
-    <div className="studio-card rounded-3xl overflow-hidden">
+    <div className="apple-card rounded-3xl overflow-hidden border border-white/15">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between bg-[#080B14]/70">
+      <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/40 backdrop-blur-md">
         <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          <div className="p-2.5 rounded-2xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/25">
             <Film className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white tracking-wide">
+            <h3 className="text-sm font-bold text-white tracking-tight">
               Master Footage Library
             </h3>
             <p className="text-[11px] text-slate-400">Imported livestreams, OBS captures, and long gameplays</p>
           </div>
         </div>
 
-        <span className="studio-pill text-[10px] font-black px-3 py-1 rounded-full bg-white/[0.04] text-slate-300 border border-white/[0.08]">
-          {videos.length} TOTAL VODS
+        <span className="text-xs font-bold px-3 py-1 rounded-full bg-white/10 text-white border border-white/15">
+          {videos.length} Total VODs
         </span>
       </div>
 
-      <div className="divide-y divide-white/[0.04]">
+      <div className="divide-y divide-white/5">
         {videos.map((v) => {
           const isSelected = selectedVideoId === v.id;
           const isProcessing = ['DOWNLOADING', 'TRANSCRIBING', 'ANALYZING', 'EDITING', 'PROCESSING'].includes(v.status);
@@ -78,16 +78,16 @@ export default function VideoList({ videos, onSelectVideo, selectedVideoId, onRe
               onClick={() => onSelectVideo(isSelected ? null : v.id)}
               className={`p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer transition-all duration-200 ${
                 isSelected 
-                  ? 'bg-indigo-950/25 border-l-4 border-l-indigo-500' 
-                  : 'hover:bg-white/[0.02]'
+                  ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/20 border-l-4 border-l-cyan-400' 
+                  : 'hover:bg-white/[0.03]'
               }`}
             >
               <div className="flex items-start space-x-4 min-w-0">
-                <div className="p-3 rounded-2xl bg-[#070A12] border border-white/[0.08] text-slate-300 flex-shrink-0 mt-0.5">
+                <div className="p-3 rounded-2xl bg-black/60 border border-white/10 text-slate-300 flex-shrink-0 mt-0.5 shadow-sm">
                   {v.source_type === 'youtube' || v.source_type === 'url' ? (
                     <YoutubeIcon className="w-5 h-5 text-red-400" />
                   ) : (
-                    <HardDrive className="w-5 h-5 text-indigo-400" />
+                    <HardDrive className="w-5 h-5 text-cyan-400" />
                   )}
                 </div>
 
@@ -97,24 +97,24 @@ export default function VideoList({ videos, onSelectVideo, selectedVideoId, onRe
                       {v.title}
                     </h4>
                     {v.clips_count > 0 && (
-                      <span className="studio-pill text-[9px] font-black px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/30">
-                        {v.clips_count} SHORTS
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                        {v.clips_count} Shorts
                       </span>
                     )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-1.5">
-                    <span className="studio-pill font-mono text-slate-300 font-semibold">{formatDuration(v.duration)}</span>
+                    <span className="font-mono text-slate-200 font-semibold bg-white/5 px-2 py-0.5 rounded-full border border-white/10">{formatDuration(v.duration)}</span>
                     <span className="text-slate-600">•</span>
-                    <span className="studio-pill">{v.width}x{v.height} @ {Math.round(v.fps)}fps</span>
+                    <span>{v.width}x{v.height} @ {Math.round(v.fps)}fps</span>
                     <span className="text-slate-600">•</span>
-                    <span className="capitalize studio-pill text-[10px] bg-white/[0.03] px-2 py-0.5 rounded border border-white/[0.06]">{v.source_type}</span>
+                    <span className="capitalize text-[10px] bg-white/5 px-2 py-0.5 rounded-full border border-white/10 text-slate-300">{v.source_type}</span>
                   </div>
 
                   {isProcessing && (
-                    <div className="mt-2 text-xs text-indigo-300 flex items-center space-x-2 animate-pulse">
-                      <span className="w-2 h-2 rounded-full bg-indigo-400" />
-                      <span className="font-medium">{v.current_step || 'Processing automated pipeline...'}</span>
+                    <div className="mt-2 text-xs text-cyan-300 flex items-center space-x-2 animate-pulse font-medium">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                      <span>{v.current_step || 'Processing automated pipeline...'}</span>
                     </div>
                   )}
                 </div>
@@ -122,14 +122,14 @@ export default function VideoList({ videos, onSelectVideo, selectedVideoId, onRe
 
               {/* Status and Action Buttons */}
               <div className="flex items-center space-x-2.5 self-end md:self-center">
-                <span className={`studio-pill text-[10px] font-black px-3 py-1 rounded-xl border uppercase tracking-wider ${
+                <span className={`text-[10px] font-black px-3.5 py-1 rounded-full border uppercase tracking-wider ${
                   v.status === 'COMPLETED'
-                    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                     : isProcessing
-                    ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40 animate-pulse'
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 animate-pulse'
                     : v.status === 'FAILED'
-                    ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
-                    : 'bg-white/[0.04] text-slate-400 border-white/[0.08]'
+                    ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                    : 'bg-white/10 text-slate-300 border-white/15'
                 }`}>
                   {v.status}
                 </span>
@@ -137,16 +137,16 @@ export default function VideoList({ videos, onSelectVideo, selectedVideoId, onRe
                 {v.status !== 'COMPLETED' && !isProcessing && (
                   <button
                     onClick={(e) => handleStart(e, v.id)}
-                    className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-md shadow-indigo-600/30"
+                    className="flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-white text-black hover:bg-slate-200 text-xs font-bold transition shadow-md shadow-white/10"
                   >
-                    <Play className="w-3.5 h-3.5" />
-                    <span>Run Automation</span>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Run</span>
                   </button>
                 )}
 
                 <button
                   onClick={(e) => handleDelete(e, v.id)}
-                  className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition"
+                  className="p-2 rounded-full text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 transition"
                   title="Delete Video"
                 >
                   <Trash2 className="w-4 h-4" />

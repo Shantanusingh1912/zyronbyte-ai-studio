@@ -68,62 +68,74 @@ export default function QuickUrlClipper({ onVideoImported }) {
   };
 
   return (
-    <div className="studio-card p-5 sm:p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
-      {/* Background ambient lighting */}
-      <div className="absolute top-0 right-10 w-96 h-36 bg-gradient-to-l from-indigo-500/15 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-10 left-10 w-80 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="apple-card p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-white/20 shadow-2xl">
+      {/* Samsung Galaxy AI & Apple Event Ambient Light Halos */}
+      <div className="absolute -top-24 left-1/4 w-96 h-48 bg-gradient-to-r from-cyan-500/15 via-blue-600/20 to-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-20 right-10 w-80 h-40 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 space-y-4">
-        {/* Editorial Subheader */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
-          <div className="flex items-center space-x-2.5">
-            <span className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-              <Sparkles className="w-4 h-4 animate-pulse" />
-            </span>
+      <div className="relative z-10 space-y-6">
+        {/* Header Title with Apple & Samsung Editorial Typography */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-400 via-blue-600 to-amber-400 p-[1.5px] shadow-lg shadow-blue-500/30">
+              <div className="w-full h-full bg-[#0d0e14] rounded-2xl flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+              </div>
+            </div>
             <div>
-              <span className="studio-pill text-[10px] font-bold text-indigo-400 tracking-wider">
-                FEATURED ENGINE // 1-CLICK CLIPPER
-              </span>
-              <h3 className="text-base sm:text-lg font-black text-white tracking-tight font-sans">
-                Paste Any Video Link & Auto-Clip
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 tracking-wider">
+                  GALAXY AI // 1-CLICK CLIPPER
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight font-sans mt-0.5">
+                Paste Any Video Link & <span className="galaxy-ai-text">Auto-Clip</span>
               </h3>
             </div>
           </div>
 
-          {/* Supported platform pills */}
-          <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-center">
-            <span className="studio-pill text-[9px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] text-slate-300 border border-white/[0.08]">
-              YOUTUBE 4K
+          {/* Platform Pills with Distinct Vivid Colors */}
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/30 shadow-sm flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+              <span>YouTube 4K</span>
             </span>
-            <span className="studio-pill text-[9px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] text-slate-300 border border-white/[0.08]">
-              TWITCH VODS
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+              <span>Twitch VODs</span>
             </span>
-            <span className="studio-pill text-[9px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] text-slate-300 border border-white/[0.08]">
-              KICK CLIPS
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>Kick Clips</span>
             </span>
-            <span className="studio-pill text-[9px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] text-slate-300 border border-white/[0.08]">
-              X / TWITTER
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30 shadow-sm flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              <span>X / Twitter</span>
+            </span>
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-sm flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>Direct URL</span>
             </span>
           </div>
         </div>
 
-        {/* Input Bar Form */}
+        {/* Apple Spotlight / Samsung Capsule Input Bar */}
         <form onSubmit={handleFetchAndClip} className="w-full">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center bg-[#070A12] border border-white/[0.12] focus-within:border-indigo-500 rounded-2xl p-2 gap-2 transition-all shadow-inner group">
-            <div className="flex items-center flex-1 min-w-0 pl-2">
-              <Link2 className="w-4 h-4 text-indigo-400 mr-2.5 flex-shrink-0" />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center bg-[#090a0f]/90 backdrop-blur-3xl border border-white/20 hover:border-white/30 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-500/20 rounded-full p-2 transition-all duration-300 shadow-2xl group">
+            <div className="flex items-center flex-1 min-w-0 pl-4">
+              <Link2 className="w-5 h-5 text-cyan-400 mr-3 flex-shrink-0" />
               <input
                 type="url"
-                placeholder="Paste YouTube, Twitch, Kick, Twitter, or web video URL here..."
+                placeholder="Paste video URL from YouTube, Twitch, Kick, Twitter, or direct MP4 link..."
                 value={url}
                 onChange={handleUrlChange}
-                className="bg-transparent text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none w-full py-1.5 font-sans"
+                className="bg-transparent text-sm sm:text-base text-white placeholder-zinc-500 focus:outline-none w-full py-2.5 font-sans"
                 required
               />
               {fetchingPreview && (
-                <span className="text-[11px] text-slate-400 px-2 flex items-center space-x-1.5 flex-shrink-0">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-                  <span className="hidden sm:inline">Inspecting...</span>
+                <span className="text-xs text-cyan-300 px-3 flex items-center space-x-2 flex-shrink-0 font-medium">
+                  <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                  <span className="hidden sm:inline">Inspecting metadata...</span>
                 </span>
               )}
             </div>
@@ -131,7 +143,7 @@ export default function QuickUrlClipper({ onVideoImported }) {
             <button
               type="submit"
               disabled={loading || !url.trim()}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-black tracking-wide transition shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transform active:scale-95"
+              className="galaxy-cta-btn px-8 py-3.5 rounded-full flex items-center justify-center space-x-2 text-xs sm:text-sm font-extrabold uppercase tracking-wider cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
             >
               {loading ? (
                 <>
@@ -140,8 +152,8 @@ export default function QuickUrlClipper({ onVideoImported }) {
                 </>
               ) : (
                 <>
-                  <span>FETCH & AUTO-CLIP</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>FETCH & AUTO-CLIP ⚡</span>
                 </>
               )}
             </button>
@@ -150,58 +162,64 @@ export default function QuickUrlClipper({ onVideoImported }) {
 
         {/* Live Detected Preview Card */}
         {previewInfo && (
-          <div className="p-3.5 rounded-2xl bg-[#090D18]/90 border border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center space-x-3.5 min-w-0">
+          <div className="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/20 backdrop-blur-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300 shadow-xl">
+            <div className="flex items-center space-x-4 min-w-0">
               {previewInfo.thumbnail ? (
                 <img 
                   src={previewInfo.thumbnail} 
                   alt={previewInfo.title} 
-                  className="w-20 h-12 object-cover rounded-xl border border-white/[0.1] shadow-md flex-shrink-0"
+                  className="w-24 h-15 object-cover rounded-xl border border-white/20 shadow-md flex-shrink-0"
                 />
               ) : (
-                <div className="w-20 h-12 bg-white/[0.04] rounded-xl flex items-center justify-center flex-shrink-0 text-slate-400">
+                <div className="w-24 h-15 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0 text-zinc-400">
                   <Video className="w-6 h-6" />
                 </div>
               )}
 
               <div className="min-w-0">
-                <h4 className="font-bold text-white truncate text-xs sm:text-sm">
+                <h4 className="font-bold text-white truncate text-sm sm:text-base">
                   {previewInfo.title}
                 </h4>
-                <div className="flex items-center space-x-2 text-[11px] text-slate-400 mt-0.5">
-                  <span className="text-indigo-400 font-semibold">{previewInfo.uploader}</span>
+                <div className="flex items-center space-x-3 text-xs text-zinc-400 mt-1">
+                  <span className="text-cyan-400 font-semibold">{previewInfo.uploader}</span>
                   {previewInfo.duration > 0 && (
                     <>
                       <span>•</span>
-                      <span>{formatSecs(previewInfo.duration)}</span>
+                      <span className="font-mono text-white bg-white/10 px-2 py-0.5 rounded-md">{formatSecs(previewInfo.duration)}</span>
                     </>
                   )}
                   <span>•</span>
-                  <span className="capitalize studio-pill text-[10px]">{previewInfo.extractor}</span>
+                  <span className="text-emerald-400 font-medium">Ready for auto-clipping</span>
                 </div>
               </div>
             </div>
 
-            <div className="self-end sm:self-center">
-              <span className="studio-pill text-[10px] font-bold px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1.5">
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span>READY TO PROCESS</span>
-              </span>
+            <div className="flex items-center space-x-2 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={handleFetchAndClip}
+                disabled={loading}
+                className="px-5 py-2 rounded-full bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold transition shadow-md shadow-cyan-500/30 flex items-center space-x-1.5 cursor-pointer"
+              >
+                <span>Process Now</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Feedback Banners */}
+        {/* Feedback Messages */}
         {successMsg && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2 animate-in fade-in">
-            <CheckCircle className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+          <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm flex items-center space-x-2.5 animate-in fade-in duration-300">
+            <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}
 
         {errorMsg && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs animate-in fade-in">
-            {errorMsg}
+          <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-center space-x-2.5 animate-in fade-in duration-300">
+            <span className="w-2 h-2 rounded-full bg-rose-400 flex-shrink-0" />
+            <span>{errorMsg}</span>
           </div>
         )}
       </div>

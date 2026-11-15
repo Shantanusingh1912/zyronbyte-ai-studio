@@ -79,54 +79,51 @@ export default function ClipGrid({
       case 'clutch':
         return {
           label: 'CLUTCH 🏆',
-          color: 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-amber-500/20'
+          color: 'bg-amber-500/25 text-amber-200 border-amber-400/50 shadow-md shadow-amber-500/20'
         };
       case 'op_kill':
       case 'kill':
         return {
           label: 'OP KILL ⚡',
-          color: 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-rose-500/20'
+          color: 'bg-rose-500/25 text-rose-200 border-rose-400/50 shadow-md shadow-rose-500/20'
         };
       case 'rush':
         return {
           label: 'RUSH 🚨',
-          color: 'bg-red-500/20 text-red-300 border-red-500/40 shadow-red-500/20'
+          color: 'bg-red-500/25 text-red-200 border-red-400/50 shadow-md shadow-red-500/20'
         };
       case 'funny':
         return {
           label: 'FUNNY 💀',
-          color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-emerald-500/20'
+          color: 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50 shadow-md shadow-emerald-500/20'
         };
       case 'reaction':
         return {
           label: 'REACTION 😱',
-          color: 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/20'
+          color: 'bg-purple-500/25 text-purple-200 border-purple-400/50 shadow-md shadow-purple-500/20'
         };
       default:
         return {
           label: (cat || 'HIGHLIGHT').toUpperCase(),
-          color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow-indigo-500/20'
+          color: 'bg-cyan-500/25 text-cyan-200 border-cyan-400/50 shadow-md shadow-cyan-500/20'
         };
     }
   };
 
   return (
     <div className="space-y-5">
-      {/* Editorial Filter Header Bar */}
-      <div className="studio-card p-3 sm:p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+      {/* Apple-style Capsule Filter Toolbar */}
+      <div className="apple-card p-3 sm:p-4 rounded-3xl flex flex-wrap items-center justify-between gap-3">
         {/* Category Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <span className="studio-pill text-[10px] font-bold text-slate-500 mr-1 hidden sm:inline">
-            FILTER //
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => onSelectCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm ${
+              className={`px-4 py-2 rounded-full text-xs font-bold transition shadow-sm ${
                 selectedCategory === cat.id
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-indigo-500/25 border border-indigo-400/30'
-                  : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+                  ? 'bg-white text-black shadow-lg shadow-white/20 border border-white'
+                  : 'bg-white/10 text-slate-300 hover:text-white hover:bg-white/15 border border-white/10'
               }`}
             >
               {cat.label}
@@ -136,16 +133,13 @@ export default function ClipGrid({
 
         {/* Status Dropdown Filter */}
         <div className="flex items-center space-x-2">
-          <span className="studio-pill text-[10px] font-bold text-slate-500 hidden sm:inline">
-            STATUS //
-          </span>
           <select
             value={selectedStatus}
             onChange={(e) => onSelectStatus(e.target.value)}
-            className="bg-[#070A12] border border-white/[0.1] text-xs font-semibold text-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500"
+            className="bg-black/60 border border-white/15 text-xs font-bold text-slate-200 rounded-full px-4 py-2 focus:outline-none focus:border-cyan-400 backdrop-blur-md"
           >
             {statuses.map((st) => (
-              <option key={st.id} value={st.id}>
+              <option key={st.id} value={st.id} className="bg-black text-white">
                 {st.label}
               </option>
             ))}
@@ -153,19 +147,19 @@ export default function ClipGrid({
         </div>
       </div>
 
-      {/* 9:16 Editorial Gallery Grid */}
+      {/* 9:16 Apple TV / Galaxy Gallery Grid */}
       {filteredClips.length === 0 ? (
-        <div className="studio-card rounded-3xl p-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center mx-auto mb-3 text-slate-500">
-            <Sparkles className="w-8 h-8 text-indigo-400" />
+        <div className="apple-card rounded-3xl p-16 text-center">
+          <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/15 flex items-center justify-center mx-auto mb-4 text-cyan-400 shadow-xl shadow-cyan-500/20">
+            <Sparkles className="w-8 h-8" />
           </div>
-          <h4 className="text-base font-bold text-white tracking-tight">No Shorts Found in this View</h4>
+          <h4 className="text-lg font-black text-white tracking-tight">No Shorts Found in this View</h4>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Import or paste a video link above to generate high-octane 9:16 vertical Shorts with animated subtitles.
+            Paste a video link in the bar above to generate high-octane 9:16 vertical Shorts with animated subtitles.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {filteredClips.map((clip) => {
             const hasThumb = Boolean(clip.thumbnail_path);
             const thumbUrl = `/api/clips/${clip.id}/thumbnail`;
@@ -175,7 +169,7 @@ export default function ClipGrid({
               <div
                 key={clip.id}
                 onClick={() => onPreviewClip(clip)}
-                className="group studio-card rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col hover:-translate-y-1"
+                className="group apple-card rounded-3xl overflow-hidden cursor-pointer flex flex-col hover:-translate-y-1.5"
               >
                 {/* 9:16 Vertical Aspect Card */}
                 <div className="relative aspect-[9/16] bg-black overflow-hidden flex items-center justify-center">
@@ -186,58 +180,58 @@ export default function ClipGrid({
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-slate-600 p-4 text-center">
-                      <Play className="w-10 h-10 mb-2 opacity-50" />
-                      <span className="studio-pill text-[10px]">9:16 RENDERING</span>
+                    <div className="flex flex-col items-center justify-center text-slate-500 p-4 text-center">
+                      <Play className="w-10 h-10 mb-2 opacity-50 text-cyan-400" />
+                      <span className="text-[10px] font-bold tracking-wider">9:16 RENDERING</span>
                     </div>
                   )}
 
-                  {/* Gradient Framing Vignette */}
+                  {/* Gradient Vignette */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/60 pointer-events-none" />
 
                   {/* Top Floating Badges */}
-                  <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                    <span className={`studio-pill text-[10px] font-black px-2.5 py-1 rounded-lg border backdrop-blur-md shadow-md ${badge.color}`}>
+                  <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between">
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-full border backdrop-blur-xl ${badge.color}`}>
                       {badge.label}
                     </span>
 
-                    <span className="studio-pill text-[10px] font-black px-2 py-0.5 rounded-lg bg-black/70 text-amber-300 border border-amber-400/30 backdrop-blur-md flex items-center space-x-1">
-                      <Flame className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-black/70 text-amber-300 border border-amber-400/40 backdrop-blur-xl flex items-center space-x-1 shadow-md">
+                      <Flame className="w-3.5 h-3.5 text-amber-400" />
                       <span>{clip.excitement_score}</span>
                     </span>
                   </div>
 
-                  {/* Play Action Hover Button */}
+                  {/* Apple-style Frosted Glass Play Button on Hover */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="w-14 h-14 rounded-2xl bg-indigo-600/95 text-white flex items-center justify-center shadow-2xl shadow-indigo-600/60 transform group-hover:scale-110 transition duration-300 backdrop-blur-md">
-                      <Play className="w-6 h-6 ml-0.5 fill-current" />
+                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-2xl border border-white/40 text-white flex items-center justify-center shadow-2xl shadow-cyan-500/50 transform group-hover:scale-110 transition duration-300">
+                      <Play className="w-7 h-7 ml-1 fill-current text-white" />
                     </div>
                   </div>
 
                   {/* Bottom Overlay on Thumbnail */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
-                    <span className="studio-pill font-mono bg-black/70 px-2 py-0.5 rounded-md text-[10px] border border-white/[0.1]">
+                  <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-between text-xs text-white">
+                    <span className="font-mono font-bold bg-black/75 px-2.5 py-0.5 rounded-full text-[10px] border border-white/15 backdrop-blur-md">
                       {Math.round(clip.duration)}s • 9:16
                     </span>
 
                     {clip.qc_passed ? (
-                      <span className="flex items-center space-x-1 text-[10px] text-emerald-400 bg-black/70 px-2 py-0.5 rounded-md border border-emerald-500/40 backdrop-blur-md">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        <span className="studio-pill">QC 100</span>
+                      <span className="flex items-center space-x-1 text-[10px] font-bold text-emerald-300 bg-black/75 px-2.5 py-0.5 rounded-full border border-emerald-500/40 backdrop-blur-md">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>QC 100</span>
                       </span>
                     ) : (
-                      <span className="flex items-center space-x-1 text-[10px] text-amber-400 bg-black/70 px-2 py-0.5 rounded-md border border-amber-500/40 backdrop-blur-md">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        <span className="studio-pill">QC PENDING</span>
+                      <span className="flex items-center space-x-1 text-[10px] font-bold text-amber-300 bg-black/75 px-2.5 py-0.5 rounded-full border border-amber-500/40 backdrop-blur-md">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                        <span>QC PENDING</span>
                       </span>
                     )}
                   </div>
                 </div>
 
                 {/* Editorial Content Info */}
-                <div className="p-3.5 flex flex-col justify-between flex-1 space-y-2.5 bg-[#080B14]">
+                <div className="p-4 flex flex-col justify-between flex-1 space-y-3 bg-[#0E0E12]">
                   <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug group-hover:text-indigo-300 transition duration-200">
+                    <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug group-hover:text-cyan-300 transition duration-200">
                       {clip.youtube_title || clip.title}
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
@@ -246,15 +240,15 @@ export default function ClipGrid({
                   </div>
 
                   {/* Status & Action Footer */}
-                  <div className="pt-2.5 border-t border-white/[0.06] flex items-center justify-between">
-                    <span className={`studio-pill text-[9px] font-black px-2 py-0.5 rounded-md border ${
+                  <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                    <span className={`text-[9px] font-black px-2.5 py-1 rounded-full border uppercase ${
                       clip.status === 'PUBLISHED'
-                        ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                         : clip.status === 'APPROVED'
-                        ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                        ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
                         : clip.status === 'SCHEDULED'
-                        ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                        : 'bg-white/[0.04] text-slate-400 border-white/[0.08]'
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                        : 'bg-white/10 text-slate-300 border-white/15'
                     }`}>
                       {clip.status.replace('_', ' ')}
                     </span>
@@ -263,7 +257,7 @@ export default function ClipGrid({
                       {!clip.approved_for_publishing ? (
                         <button
                           onClick={(e) => handleApprove(e, clip.id)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition flex items-center space-x-1"
+                          className="px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold transition flex items-center space-x-1"
                           title="Approve for Publishing"
                         >
                           <CheckCircle className="w-3 h-3" />
@@ -272,7 +266,7 @@ export default function ClipGrid({
                       ) : (
                         <button
                           onClick={(e) => handlePublishNow(e, clip.id)}
-                          className="flex items-center space-x-1 px-3 py-1 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-[10px] font-black transition shadow-md shadow-indigo-600/30"
+                          className="flex items-center space-x-1 px-3.5 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white text-[10px] font-black transition shadow-lg shadow-purple-600/30"
                           title="Publish to YouTube Shorts & Reels"
                         >
                           <Send className="w-2.5 h-2.5" />
@@ -282,7 +276,7 @@ export default function ClipGrid({
 
                       <button
                         onClick={(e) => handleReject(e, clip.id)}
-                        className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 transition"
+                        className="p-1.5 rounded-full hover:bg-rose-500/15 text-slate-400 hover:text-rose-400 transition"
                         title="Delete Clip"
                       >
                         <XCircle className="w-3.5 h-3.5" />
