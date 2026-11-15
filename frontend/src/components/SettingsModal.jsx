@@ -153,17 +153,26 @@ export default function SettingsModal({ isOpen, onClose, onRefresh }) {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Clips Per Video
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-slate-300">
+                    Clips Per Video
+                  </label>
+                  <span className="text-[10px] text-indigo-400 font-mono font-semibold">
+                    {Number(clipsPerVideo) === 0 ? 'AUTO SCALED' : `${clipsPerVideo} fixed`}
+                  </span>
+                </div>
                 <input
                   type="number"
-                  min={1}
-                  max={15}
+                  min={0}
+                  max={30}
                   value={clipsPerVideo}
                   onChange={(e) => setClipsPerVideo(e.target.value)}
+                  placeholder="0 for Auto"
                   className="w-full bg-[#0A0D15] border border-[#232B3E] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                 />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  0 = Auto (19m: 5-7, 100m: 12-16 clips)
+                </p>
               </div>
 
               <div>

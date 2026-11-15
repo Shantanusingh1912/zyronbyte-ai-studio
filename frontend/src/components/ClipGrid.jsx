@@ -15,11 +15,15 @@ export default function ClipGrid({
   selectedStatus,
   onSelectStatus 
 }) {
-  const categories = ['all', 'clutch', 'kill', 'funny', 'reaction', 'action', 'unexpected'];
+  const categories = ['all', 'clutch', 'op_kill', 'rush', 'reaction', 'funny'];
   const statuses = ['all', 'READY_FOR_APPROVAL', 'APPROVED', 'SCHEDULED', 'PUBLISHED', 'QC_FAILED'];
 
   const filteredClips = (clips || []).filter(c => {
-    if (selectedCategory !== 'all' && c.highlight_category !== selectedCategory) return false;
+    if (selectedCategory !== 'all') {
+      const cCat = c.highlight_category?.toLowerCase();
+      if (selectedCategory === 'op_kill' && (cCat === 'op_kill' || cCat === 'kill')) return true;
+      if (cCat !== selectedCategory) return false;
+    }
     if (selectedStatus !== 'all' && c.status !== selectedStatus) return false;
     return true;
   });
@@ -58,7 +62,9 @@ export default function ClipGrid({
   const getCategoryColor = (cat) => {
     switch (cat?.toLowerCase()) {
       case 'clutch': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'op_kill':
       case 'kill': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      case 'rush': return 'bg-red-500/10 text-red-400 border-red-500/20';
       case 'funny': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
       case 'reaction': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
       case 'unexpected': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';

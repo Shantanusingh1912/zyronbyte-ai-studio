@@ -1,19 +1,55 @@
 import os
+import re
 import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from google import genai
 from google.genai import types
 from ..config import settings
+from .audio_analyzer import audio_analyzer
 
 logger = logging.getLogger("zyronbyte.gemini")
 
+def get_duration_scaled_clip_targets(duration_seconds: float, configured_clips: Optional[int] = None) -> Tuple[int, int]:
+    """
+    Calculates (min_clips, max_clips) dynamically based on video duration:
+    - < 12 min: 3-5 clips
+    - 12-25 min (e.g. 19-min video): 5-7 clips
+    - 25-50 min: 7-10 clips
+    - 50-90 min: 10-14 clips
+    - 90-140 min (e.g. 100-min video): 12-16 clips
+    - > 140 min (2-3+ hour livestream): 16-24 clips
+    
+    If the user has explicitly configured a non-zero, custom clips_per_video setting,
+    it respects that preference.
+    """
+    duration_mins = max(1.0, duration_seconds / 60.0)
+
+    # If user explicitly configured a custom number > 0 that is not the old default (6 or 7)
+    if configured_clips and configured_clips > 0 and configured_clips not in (6, 7):
+        min_c = max(3, int(configured_clips * 0.8))
+        return (min_c, configured_clips)
+
+    if duration_mins < 12.0:
+        return (3, 5)
+    elif duration_mins < 25.0:
+        return (5, 7)
+    elif duration_mins < 50.0:
+        return (7, 10)
+    elif duration_mins < 90.0:
+        return (10, 14)
+    elif duration_mins < 140.0:
+        return (12, 16)
+    else:
+        return (16, 24)
+
 class GeminiAIService:
     """
-    Integrates Google Gemini API for:
-    - Multimodal & transcript-based gaming highlight detection
-    - Viral YouTube Shorts titles
-    - Engaging Instagram Reel captions
+    Integrates Google Gemini API and Multimodal Audio Peak Analysis for:
+    - Dynamic highlight detection across multiple gaming categories (clutch, op_kill, rush, reaction, funny)
+    - Category diversity quota enforcement (guaranteeing varied Shorts, never just one category)
+    - Viral YouTube Shorts titles (#Shorts #Gaming #ZyronByte)
+    - Engaging Instagram Reel captions with CTAs
     - SEO gaming tags and metadata
     """
 
@@ -23,7 +59,6 @@ class GeminiAIService:
         self._client = None
 
     def get_client(self):
-        # Refresh key from settings if changed
         current_key = self.api_key or settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
         if current_key and not self._client:
             self._client = genai.Client(api_key=current_key)
@@ -33,23 +68,29 @@ class GeminiAIService:
         self,
         video_metadata: Dict[str, Any],
         transcript_data: Dict[str, Any],
-        min_clips: int = 5,
-        max_clips: int = 10,
+        min_clips: Optional[int] = None,
+        max_clips: Optional[int] = None,
         min_duration: int = 30,
-        max_duration: int = 60
+        max_duration: int = 60,
+        configured_clips_setting: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        Uses Gemini to analyze the video timing, transcript, and audio markers
-        to select top gaming highlights.
+        Detects top gaming highlights using Gemini AI when configured,
+        fused with audio peak gunfire/combat detection and intelligent multilingual gaming heuristics.
         """
-        client = self.get_client()
-        video_duration = video_metadata.get("duration", 0)
+        video_duration = float(video_metadata.get("duration", 0.0))
 
-        # If Gemini API client is available and key is configured, use Gemini
+        # Dynamically scale clips based on video duration if not explicitly passed
+        if min_clips is None or max_clips is None:
+            min_clips, max_clips = get_duration_scaled_clip_targets(video_duration, configured_clips_setting)
+
+        client = self.get_client()
+
+        # If Gemini API client is available and key is configured, call Gemini
         if client and self.api_key:
             try:
-                logger.info("Calling Gemini API for intelligent highlight detection...")
-                return self._gemini_analyze_highlights(
+                logger.info(f"Calling Gemini API for intelligent highlight detection (target {min_clips}-{max_clips} clips)...")
+                gemini_results = self._gemini_analyze_highlights(
                     client=client,
                     video_metadata=video_metadata,
                     transcript_data=transcript_data,
@@ -58,10 +99,12 @@ class GeminiAIService:
                     min_duration=min_duration,
                     max_duration=max_duration
                 )
+                if gemini_results and len(gemini_results) >= min_clips:
+                    return gemini_results
             except Exception as e:
-                logger.error(f"Gemini API analysis failed: {e}. Falling back to intelligent heuristic highlight analyzer.")
+                logger.error(f"Gemini API analysis failed: {e}. Falling back to multi-signal heuristic analyzer.")
 
-        # Intelligent Fallback Analyzer (based on transcript word density, emotion cues, speech spikes, and gameplay pacing)
+        # Multimodal Heuristic Highlight Analyzer (Audio Peaks + Transcripts + Category Diversity)
         return self._heuristic_analyze_highlights(
             video_metadata=video_metadata,
             transcript_data=transcript_data,
@@ -81,35 +124,44 @@ class GeminiAIService:
         min_duration: int,
         max_duration: int
     ) -> List[Dict[str, Any]]:
-        """Prompt Gemini with video info and transcript segments to extract highlights."""
+        """Prompt Gemini with video info and transcript segments to extract balanced highlights."""
+        duration = float(video_metadata.get("duration", 0.0))
+        duration_mins = duration / 60.0
+
+        # Sample segments evenly across the video to avoid truncating long videos
+        raw_segments = transcript_data.get("segments", [])
+        if len(raw_segments) > 250:
+            step = len(raw_segments) / 250.0
+            sampled_segments = [raw_segments[int(i * step)] for i in range(250)]
+        else:
+            sampled_segments = raw_segments
+
         prompt = f"""
-You are the Lead Video Editor and Social Media Director for a popular gaming YouTube channel called 'ZyronByteYT'.
+You are the Lead Video Editor and Social Media Director for a top gaming YouTube channel called 'ZyronByteYT'.
 Analyze this gaming video transcript and timeline to identify the top {min_clips} to {max_clips} viral gaming highlights.
 
-CRITERIA FOR HIGHLIGHTS:
-1. Funny gaming moments, fails, or hilarious reactions.
-2. Clutch moments, insane 1vX plays, epic kills, boss fights, or victory royales.
-3. Unexpected game physics, glitches, jumpscares, or plot twists.
-4. Engaging banter, screaming reactions, or high-energy team calls.
-5. High-action gameplay sequences.
-
-AVOID:
-- Loading screens, menus, dead silence, lobby waiting, or mundane traveling.
+CRITICAL REQUIREMENT - DIVERSE CATEGORIES:
+Do NOT make all clips the same category or repeat similar titles.
+You MUST provide a balanced distribution across these categories:
+- 'clutch': 1v3/1v4, solo vs squad, final circle showdown, last man standing, winner chicken dinner (at least 25%).
+- 'op_kill': One-tap sniper headshots, squad wipes, spray transfers, clean flick shots, insane eliminations (at least 25%).
+- 'rush': High action pushes, third-party ambushes, airdrop fights, aggressive close-quarters combat (20%).
+- 'reaction': Screaming, hype moments, "Oh my God", "Hacker hai kya", genuine disbelief (15%).
+- 'funny': Hilarious fails, grenade accidents, bot encounters, vehicle crashes, awkward physics (15%).
 
 SPECIFICATIONS:
-- Video Total Duration: {video_metadata.get('duration', 0):.1f} seconds.
-- Each clip duration must be between {min_duration} and {max_duration} seconds.
-- Leave 2-3 seconds of context before and after the action climax.
-- Provide exact start_time and end_time (in seconds, e.g. 45.0, 85.0).
-- Categorize each: 'kill', 'clutch', 'funny', 'reaction', 'action', or 'unexpected'.
-- Rate excitement score from 75 to 100.
-- Write a catchy YouTube Shorts title (under 60 chars) with #Shorts #Gaming #ZyronByte.
+- Video Total Duration: {duration:.1f} seconds ({duration_mins:.1f} minutes).
+- Return between {min_clips} and {max_clips} highlights spread across the full timeline.
+- Each clip duration must be between {min_duration} and {max_duration} seconds (ideal ~35-45s).
+- Provide exact start_time and end_time (in seconds, e.g. 45.0, 80.0).
+- Categorize each highlight accurately: 'clutch', 'op_kill', 'rush', 'reaction', or 'funny'.
+- Excitement score from 80 to 99.
+- Write a punchy YouTube Shorts title (under 60 chars) with #Shorts #Gaming #ZyronByte.
 - Write an engaging Instagram Reel caption with call to action.
-- Provide 5-8 relevant gaming hashtags.
-- Provide SEO keywords.
+- Provide 5-8 relevant gaming hashtags and SEO keywords.
 
 TRANSCRIPT TIMELINE DATA:
-{json.dumps(transcript_data.get('segments', [])[:150], indent=2)}
+{json.dumps(sampled_segments, indent=2)}
 
 OUTPUT FORMAT:
 Return strictly a valid JSON array of objects conforming to this schema:
@@ -118,11 +170,11 @@ Return strictly a valid JSON array of objects conforming to this schema:
     "title": "Short descriptive clip title",
     "category": "clutch",
     "description": "Why this is an epic highlight",
-    "score": 95,
+    "score": 96,
     "start_time": 45.0,
-    "end_time": 85.0,
-    "youtube_title": "HE DID NOT SEE THIS COMING! 🔥 #Shorts #Gaming",
-    "instagram_caption": "Wait till the end... You won't believe this clutch play! Drop a 💀 if you'd uninstall. Follow @ZyronByteYT for daily gaming clips!",
+    "end_time": 80.0,
+    "youtube_title": "HE PULLED OFF THE IMPOSSIBLE 1v3! 🔥 #Shorts #Gaming #ZyronByte",
+    "instagram_caption": "Down to 1 HP and the last bullet... Would you have won this? Drop a 💀 if you'd uninstall! Follow @ZyronByteYT for daily gaming shorts!",
     "hashtags": ["#gaming", "#gamer", "#Shorts", "#clutch", "#epicmoment", "#ZyronByte"],
     "keywords": ["gaming clutch", "insane play", "fps highlight"]
   }}
@@ -136,7 +188,7 @@ Return strictly a valid JSON array of objects conforming to this schema:
                 temperature=0.3
             )
         )
-        
+
         parsed = json.loads(response.text)
         if isinstance(parsed, dict) and "highlights" in parsed:
             parsed = parsed["highlights"]
@@ -152,149 +204,302 @@ Return strictly a valid JSON array of objects conforming to this schema:
         max_duration: int
     ) -> List[Dict[str, Any]]:
         """
-        Algorithmic highlight detector:
-        - Analyzes speech density, exclamation marks, high-energy gaming keywords (clutch, no way, kill, omg, win, headshot, dead, gg)
-        - Computes dynamic time intervals across video duration
-        - Generates professional titles and captions
+        Multimodal Heuristic Highlight Detector:
+        1. Analyzes audio energy peaks (gunfire, combat, explosions, screaming) using FFmpeg streamed audio.
+        2. Detects multilingual gaming keywords across 5 distinct categories: clutch, op_kill, rush, reaction, funny.
+        3. Enforces strict category diversity quota (never all 'funny').
+        4. Generates unique, viral titles and social captions tailored to each highlight category.
         """
+        video_path = video_metadata.get("file_path", "")
         duration = float(video_metadata.get("duration", 180.0))
-        segments = transcript_data.get("segments", [])
-        
-        # Gaming excitement vocabulary
-        excitement_keywords = {
-            "clutch": ("clutch", 95, "INSANE 1v3 Clutch Play!"),
-            "kill": ("kill", 90, "Unbelievable Elimination Shot!"),
-            "headshot": ("kill", 92, "One Tap Headshot Across The Map!"),
-            "no way": ("unexpected", 94, "NO WAY THIS JUST HAPPENED! 😱"),
-            "omg": ("reaction", 89, "Bro Lost His Mind Over This!"),
-            "what": ("funny", 88, "The Funniest Gaming Moment Today"),
-            "dead": ("action", 86, "High Action Gameplay Wipeout"),
-            "run": ("action", 85, "Heart-Pounding Survival Escape!"),
-            "win": ("clutch", 96, "Down To The Final Second! GG"),
-            "gg": ("clutch", 87, "Most Intense Ending Ever!")
+        target_clip_length = 35.0
+
+        # Category definitions with keywords, priority weights, and varied title templates
+        CATEGORIES = {
+            "clutch": {
+                "weight": 96,
+                "keywords": [
+                    "1v4", "1v3", "1v2", "1v1", "clutch", "last man", "last one", "last player",
+                    "clutch or kick", "solo vs squad", "chicken dinner", "winner winner",
+                    "final zone", "last circle", "we won", "won", "revive me", "stay alive",
+                    "lone survivor", "unreal clutch", "last banda", "aakhri banda", "bach gaya",
+                    "khatam kiya", "bhai clutch", "ek goli", "one hp", "1 hp", "zone me", "heal kar"
+                ],
+                "titles": [
+                    "UNREAL 1v3 Clutch Play! Down To The Last Bullet 🔥",
+                    "Solo vs Squad Final Circle Madness! 🏆",
+                    "He Actually Pulled Off The Impossible 1v4! 😱",
+                    "Down To 1 HP In The Final Zone! Clutch or Kick 🥶",
+                    "Coldest Battle Royale Clutch You'll See Today 🥶",
+                    "Pure 200 IQ Brain Play In Final Circle! 🧠",
+                    "Down To The Last Second! GG Winner 🏆"
+                ]
+            },
+            "op_kill": {
+                "weight": 93,
+                "keywords": [
+                    "op", "headshot", "one tap", "sniper", "kar98", "m24", "awm", "wipe",
+                    "squad wipe", "team wipe", "knocked", "knock", "finish", "triple kill",
+                    "quad kill", "ace", "ultra kill", "noscope", "quickscope", "spray transfer",
+                    "laser spray", "melted", "frag", "dink", "clean headshot", "eliminated",
+                    "op kill", "op bhai", "kya headshot mara", "headshot mara", "baja diya",
+                    "pel diya", "gira diya", "knock kiya", "squad khatam", "ek tap", "dhuan dhaar",
+                    "chala gaya", "mar gaya", "khatam ho gaya", "gaya gaya"
+                ],
+                "titles": [
+                    "DISGUSTING One-Tap Sniper Headshot! 🎯",
+                    "INSANE Squad Wipe In 5 Seconds! ⚡",
+                    "Pure Aimbot or 200 IQ Spray Transfer? 💥",
+                    "OP Elimination! They Never Stood A Chance 💀",
+                    "Dirtiest Sniper Quickscope Across The Map! 🤯",
+                    "Most Disgusting Flick Shot Of The Stream 🔥",
+                    "Bro Just Deleted The Whole Team! ⚡",
+                    "Cleanest One-Tap You'll Watch Today 🎯"
+                ]
+            },
+            "rush": {
+                "weight": 89,
+                "keywords": [
+                    "rush", "push", "pushing", "full send", "aggressive", "under fire",
+                    "enemies ahead", "third party", "flank", "smoke", "breach", "drop shot",
+                    "jiggle peek", "combat", "airdrop", "rush karo", "push karo", "aage banda",
+                    "banda hai", "peche se", "chadh gaye", "goli chal rahi", "drop pe",
+                    "andar aao", "gaadi aayi", "chalo chalo", "ghus gaye", "andhi rush"
+                ],
+                "titles": [
+                    "Full Squad Aggressive Rush Gone Completely Wild! 🚨",
+                    "Insane Close-Range Reflexes Under Heavy Fire! 💥",
+                    "They Tried To Third Party & Instantly Regretted It ⚡",
+                    "Absolute Chaos At The Airdrop Fight! 📦",
+                    "When The Squad Decides To Go Full Send! 🏎️💨",
+                    "Most Aggressive Push You'll See In Ranked 💥"
+                ]
+            },
+            "reaction": {
+                "weight": 88,
+                "keywords": [
+                    "omg", "no way", "what the", "holy", "are you kidding", "unbelievable",
+                    "screaming", "hacker", "reported", "he's cheating", "lets go", "let's go",
+                    "kya baat hai", "arey bhai", "pagal", "hacker hai kya", "bhai ye kya tha",
+                    "kya hi mara", "arre yaar", "bhai sun", "dekh dekh", "ye kaise hua",
+                    "lost his mind", "chilla raha", "bawal", "oh my god", "my god"
+                ],
+                "titles": [
+                    "Bro Completely Lost His Mind After This! 💀",
+                    "His Reaction Said Absolutely Everything! 😂",
+                    "Is He Actually Hacking?! Unbelievable Reaction 😱",
+                    "Screaming At The Top Of His Lungs! 🔊",
+                    "The Entire Lobby Heard That Reaction! 🗣️",
+                    "Bro Could Not Believe What His Eyes Just Saw 🤯"
+                ]
+            },
+            "funny": {
+                "weight": 86,
+                "keywords": [
+                    "fail", "lol", "lmao", "wtf", "bot", "noob", "potato aim", "grenade fail",
+                    "accident", "glitch", "bug", "stuck", "blown up", "embarrassing", "choke",
+                    "kya bot hai", "hasi aa gayi", "fail ho gaya", "khud ko uda liya",
+                    "apne hi bomb se", "gaadi thuk gayi", "kya noob hai", "loot ke chakkar me",
+                    "funny moment", "hasi nahi ruk rahi"
+                ],
+                "titles": [
+                    "When The Grenade Bounces Straight Back At You 😭💀",
+                    "Funniest Potato Aim Moment Of The Year 😂",
+                    "How Did This Even Happen?! The Biggest Fail 💀",
+                    "When Driving Goes Completely Wrong In Battle Royale 🚗💥",
+                    "Bro Died In The Funniest Way Possible 😭",
+                    "Funniest Bot Encounter Of The Entire Stream 💀"
+                ]
+            }
         }
 
-        found_moments = []
-        target_clip_length = 35.0  # standard punchy gaming short duration
+        # Step A: Collect Audio Energy Peaks (Gunfire, combat, hype)
+        audio_peaks = []
+        if video_path and os.path.exists(video_path):
+            audio_peaks = audio_analyzer.analyze_audio_peaks(
+                video_path,
+                target_clip_duration=target_clip_length,
+                min_distance_seconds=30.0
+            )
 
-        if segments and len(segments) > 2:
-            # Score segments based on speech pacing and excitement keywords
+        # Step B: Score Transcript Segments across Categories
+        transcript_candidates = []
+        segments = transcript_data.get("segments", [])
+
+        if segments:
             for seg in segments:
                 text = seg.get("text", "").lower()
                 seg_start = seg.get("start", 0.0)
                 seg_end = seg.get("end", seg_start + 5.0)
-                
-                score = 75
-                category = "action"
-                title = "Insane Gameplay Moment!"
 
-                for kw, (cat, kw_score, kw_title) in excitement_keywords.items():
-                    if kw in text:
-                        score = max(score, kw_score)
-                        category = cat
-                        title = kw_title
+                best_category = None
+                best_score = 70
+                matched_kw = ""
 
-                if "!" in text or "?" in text:
-                    score += 5
+                # Evaluate text against categories
+                for cat_name, cat_data in CATEGORIES.items():
+                    for kw in cat_data["keywords"]:
+                        # Word boundary or phrase check
+                        pattern = r'\b' + re.escape(kw) + r'\b' if len(kw) <= 4 else re.escape(kw)
+                        if re.search(pattern, text):
+                            cand_score = cat_data["weight"]
+                            if "!" in text or "?" in text:
+                                cand_score += 3
+                            if cand_score > best_score:
+                                best_score = cand_score
+                                best_category = cat_name
+                                matched_kw = kw
 
-                # Adjust start and end to hit between 30 and 45 seconds around the peak
-                start_time = max(0.0, seg_start - 8.0)
-                end_time = min(duration, start_time + target_clip_length)
-                
-                if end_time - start_time >= min_duration:
-                    found_moments.append({
-                        "start_time": round(start_time, 2),
-                        "end_time": round(end_time, 2),
-                        "score": score,
-                        "category": category,
-                        "title": title,
-                        "text": text
-                    })
+                if best_category and best_score >= 80:
+                    c_start = max(0.0, seg_start - 8.0)
+                    c_end = min(duration, c_start + target_clip_length)
+                    if c_end - c_start >= min_duration:
+                        transcript_candidates.append({
+                            "start_time": round(c_start, 2),
+                            "end_time": round(c_end, 2),
+                            "category": best_category,
+                            "score": best_score,
+                            "source": "transcript",
+                            "matched_keyword": matched_kw
+                        })
 
-        # If few transcript moments were found, generate balanced action intervals across the video
-        if len(found_moments) < min_clips:
-            # Divide video into dynamic windows avoiding intro (first 10s) and outro (last 10s)
-            usable_duration = max(min_duration, duration - 20.0)
-            step = usable_duration / (min_clips + 1)
-            
-            categories = ["clutch", "kill", "funny", "reaction", "action", "unexpected"]
-            titles = [
-                "HE COULD NOT BELIEVE THIS PLAY! 🔥",
-                "Down To The Last Bullet! Clutch or Kick",
-                "The Funniest Gaming Moment Of The Stream 💀",
-                "Pure Aim Assist Or 200 IQ Brain Play?",
-                "They Did NOT Expect Him Here! 😂",
-                "Final Boss Battle Was Absolute Chaos!",
-                "Bro Started Sweating Real Quick"
+        # Step C: Convert Audio Peaks into Action / Clutch / OP Kill Candidates
+        audio_candidates = []
+        for ap in audio_peaks:
+            p_time = ap["peak_time"]
+            # If peak is in final 20% of video duration, likely final circle clutch
+            is_final_circle = (p_time / max(1.0, duration)) > 0.75
+            category = "clutch" if is_final_circle else ("op_kill" if ap["score"] >= 90 else "rush")
+
+            # Check if this peak overlaps with any transcript candidate and boost its score
+            overlapping_trans = [
+                tc for tc in transcript_candidates
+                if abs((tc["start_time"] + tc["end_time"]) / 2.0 - p_time) < 15.0
             ]
+            if overlapping_trans:
+                for tc in overlapping_trans:
+                    tc["score"] = min(99, tc["score"] + 6)
+            else:
+                audio_candidates.append({
+                    "start_time": ap["start_time"],
+                    "end_time": ap["end_time"],
+                    "category": category,
+                    "score": ap["score"],
+                    "source": "audio_peak",
+                    "matched_keyword": "audio_energy_burst"
+                })
 
-            for i in range(min_clips):
-                c_start = max(5.0, 10.0 + (i * step))
-                c_end = min(duration - 2.0, c_start + target_clip_length)
-                if c_end - c_start >= min_duration:
-                    found_moments.append({
-                        "start_time": round(c_start, 2),
-                        "end_time": round(c_end, 2),
-                        "score": 85 + (i % 12),
-                        "category": categories[i % len(categories)],
-                        "title": titles[i % len(titles)],
-                        "text": ""
-                    })
+        # Combine all candidates
+        all_candidates = transcript_candidates + audio_candidates
 
-        # Deduplicate heavily overlapping clips (allow up to 10s overlap)
-        found_moments.sort(key=lambda x: x["score"], reverse=True)
+        # Step D: Fill with timeline-spaced intervals if needed to ensure coverage across the video
+        timeline_candidates = []
+        usable_duration = max(min_duration, duration - 30.0)
+        num_intervals = max(max_clips * 2, int(duration / 300.0))  # one every ~5 mins
+        interval_step = usable_duration / max(1, num_intervals)
+        cat_keys = ["clutch", "op_kill", "rush", "reaction", "funny"]
+
+        for i in range(num_intervals):
+            c_start = max(5.0, 15.0 + (i * interval_step))
+            c_end = min(duration - 2.0, c_start + target_clip_length)
+            if c_end - c_start >= min_duration:
+                # Cycle categories gracefully
+                cat = cat_keys[i % len(cat_keys)]
+                timeline_candidates.append({
+                    "start_time": round(c_start, 2),
+                    "end_time": round(c_end, 2),
+                    "category": cat,
+                    "score": 82 + (i % 8),
+                    "source": "timeline_interval",
+                    "matched_keyword": "gameplay_interval"
+                })
+
+        # Pool all candidates together
+        full_pool = all_candidates + timeline_candidates
+
+        # Step E: Enforce Category Diversity Quota
+        # Group candidates by category
+        pool_by_category = {cat: [] for cat in cat_keys}
+        for item in full_pool:
+            pool_by_category[item["category"]].append(item)
+
+        for cat in cat_keys:
+            pool_by_category[cat].sort(key=lambda x: x["score"], reverse=True)
+
+        # Target quota distribution for max_clips
+        # e.g. for 14 clips: clutch ~4, op_kill ~4, rush ~3, reaction ~2, funny ~1
         selected: List[Dict[str, Any]] = []
 
-        for m in found_moments:
-            # Check overlap with already selected (reject only if midpoint is within 12s)
-            m_mid = (m["start_time"] + m["end_time"]) / 2.0
-            overlap = False
+        def can_add(candidate: Dict[str, Any]) -> bool:
+            c_mid = (candidate["start_time"] + candidate["end_time"]) / 2.0
             for s in selected:
                 s_mid = (s["start_time"] + s["end_time"]) / 2.0
-                if abs(m_mid - s_mid) < 15.0:
-                    overlap = True
-                    break
-            if not overlap:
-                selected.append(m)
+                if abs(c_mid - s_mid) < 22.0:  # Avoid heavy overlap
+                    return False
+            return True
+
+        # Round 1: Give each category at least 1-2 top slots (guarantees diverse categories)
+        min_per_cat = max(1, max_clips // 6)
+        for cat in cat_keys:
+            count = 0
+            for item in pool_by_category[cat]:
+                if can_add(item):
+                    selected.append(item)
+                    count += 1
+                    if count >= min_per_cat or len(selected) >= max_clips:
+                        break
+
+        # Round 2: Fill remaining slots prioritized by score (clutch & op_kill favored)
+        priority_cat_order = ["clutch", "op_kill", "rush", "reaction", "funny"]
+        for cat in priority_cat_order:
             if len(selected) >= max_clips:
                 break
+            for item in pool_by_category[cat]:
+                if item not in selected and can_add(item):
+                    selected.append(item)
+                    if len(selected) >= max_clips:
+                        break
 
-        # Ensure we always meet the requested min_clips
+        # Round 3: If still under min_clips, fill with any valid non-overlapping moment
         if len(selected) < min_clips:
-            step = max(target_clip_length, (duration - 10.0) / max(1, min_clips))
-            for i in range(min_clips):
-                if len(selected) >= min_clips:
-                    break
-                c_start = max(0.0, 5.0 + (i * step))
-                c_end = min(duration, c_start + target_clip_length)
-                if c_end - c_start >= min_duration:
-                    selected.append({
-                        "start_time": round(c_start, 2),
-                        "end_time": round(c_end, 2),
-                        "score": 80 + i,
-                        "category": ["clutch", "kill", "action", "funny"][i % 4],
-                        "title": f"Viral Gaming Moment #{len(selected)+1}",
-                        "text": ""
-                    })
+            full_pool.sort(key=lambda x: x["score"], reverse=True)
+            for item in full_pool:
+                if item not in selected and can_add(item):
+                    selected.append(item)
+                    if len(selected) >= max_clips:
+                        break
 
-        # Generate metadata for each selected clip
+        # Sort selected chronologically across video timeline
+        selected.sort(key=lambda x: x["start_time"])
+
+        # Step F: Generate High-Impact Titles, Captions, and Metadata per Category
+        category_title_counters = {cat: 0 for cat in cat_keys}
         results = []
+
         for idx, item in enumerate(selected, 1):
             cat = item["category"]
-            yt_title = f"{item['title']} #Shorts #Gaming #ZyronByte"[:95]
+            cat_info = CATEGORIES.get(cat, CATEGORIES["clutch"])
+            titles_pool = cat_info["titles"]
+
+            # Select title cyclically for this category
+            t_idx = category_title_counters[cat] % len(titles_pool)
+            category_title_counters[cat] += 1
+            clip_title = titles_pool[t_idx]
+
+            yt_title = f"{clip_title} #Shorts #Gaming #ZyronByte"[:95]
             ig_caption = (
-                f"{item['title']}\n\n"
-                f"Rate this gaming play 1-10 in the comments! 👇\n"
+                f"{clip_title}\n\n"
+                f"Rate this {cat.upper()} play 1-10 in the comments! 👇\n"
                 f"Drop a follow @ZyronByteYT for daily gaming shorts & livestream highlights!\n\n"
-                f"#gaming #gamers #shorts #reels #gamingcommunity #zyronbyte"
+                f"#gaming #gamers #shorts #reels #{cat} #gamingcommunity #zyronbyte"
             )
             hashtags = ["#Shorts", "#gaming", "#gamer", "#zyronbyte", f"#{cat}", "#viralclips"]
-            keywords = ["gaming highlights", "best gaming moments", "zyronbyteyt", cat]
+            keywords = ["gaming highlights", "best gaming moments", "zyronbyteyt", cat, "bgmi", "fps"]
 
             results.append({
-                "title": f"Clip #{idx}: {item['title']}",
+                "title": f"Clip #{idx}: {clip_title}",
                 "category": cat,
-                "description": f"High intensity {cat} highlight extracted from gameplay at {item['start_time']}s.",
+                "description": f"High intensity {cat.upper()} highlight extracted from gameplay at {item['start_time']}s.",
                 "score": item["score"],
                 "start_time": item["start_time"],
                 "end_time": item["end_time"],
@@ -304,6 +509,8 @@ Return strictly a valid JSON array of objects conforming to this schema:
                 "keywords": keywords
             })
 
+        logger.info(f"Heuristic highlight detector finalized {len(results)} clips across categories: "
+                    f"{[r['category'] for r in results]}")
         return results
 
     def generate_single_clip_metadata(self, clip_title: str, category: str) -> Dict[str, Any]:
@@ -312,14 +519,14 @@ Return strictly a valid JSON array of objects conforming to this schema:
         if client and self.api_key:
             try:
                 prompt = f"""
-Generate social media metadata for a gaming short titled '{clip_title}' with category '{category}'.
+Generate viral social media metadata for a gaming short titled '{clip_title}' with category '{category}'.
 Target creator: ZyronByteYT.
 Return valid JSON:
 {{
-  "youtube_title": "Catchy Shorts title with #Shorts",
+  "youtube_title": "Catchy Shorts title under 60 chars with #Shorts #Gaming",
   "instagram_caption": "Engaging IG Reels caption with CTA",
-  "hashtags": ["#gaming", "#gamer", "#Shorts", "#ZyronByte"],
-  "keywords": ["gaming", "fps", "highlight"]
+  "hashtags": ["#gaming", "#gamer", "#Shorts", "#ZyronByte", "#{category}"],
+  "keywords": ["gaming", "{category}", "highlight"]
 }}
 """
                 resp = client.models.generate_content(
@@ -333,7 +540,7 @@ Return valid JSON:
 
         # Fallback metadata
         return {
-            "youtube_title": f"{clip_title} 🔥 #Shorts #Gaming",
+            "youtube_title": f"{clip_title} 🔥 #Shorts #Gaming #ZyronByte"[:95],
             "instagram_caption": f"Wait till the end! 😱 Drop a like if you enjoyed this {category} play. Follow @ZyronByteYT!\n\n#gaming #Shorts #ZyronByte",
             "hashtags": ["#gaming", "#gamer", "#Shorts", "#ZyronByte", f"#{category}"],
             "keywords": ["gaming", category, "shorts", "zyronbyte"]

@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     
     # Automation Defaults
     AUTO_PUBLISH_DEFAULT: bool = False  # Initially require manual approval as requested
-    MAX_CLIPS_PER_VIDEO: int = 7
+    MAX_CLIPS_PER_VIDEO: int = 0  # 0 = Auto Dynamic Scaling based on video duration (19min -> 5-7, 100min -> 12-16)
     DAILY_PUBLISH_LIMIT: int = 3
     
     class Config:

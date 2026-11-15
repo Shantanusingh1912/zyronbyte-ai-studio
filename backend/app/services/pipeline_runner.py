@@ -97,39 +97,46 @@ class PipelineRunner:
             # ---------------------------------------------------------
             # STEP 2: Transcribe Speech & Audio Events (Whisper)
             # ---------------------------------------------------------
-            video.status = "TRANSCRIBING"
-            video.current_step = "Transcribing Speech & Timestamps with Whisper AI"
-            video.progress = 25.0
-            db.commit()
-
-            self.log_event(db, "INFO", f"Extracting audio & transcribing video #{video_id} ({video.duration:.1f}s)...")
-            
-            def on_transcribe_progress(current_s: float, total_s: float):
-                pct = min(100.0, (current_s / max(1.0, total_s)) * 100.0)
-                cur_m = int(current_s // 60)
-                cur_s = int(current_s % 60)
-                tot_m = int(total_s // 60)
-                tot_s = int(total_s % 60)
-                time_str = f"{cur_m:02d}:{cur_s:02d} / {tot_m:02d}:{tot_s:02d}"
-                video.progress = round(25.0 + (20.0 * (pct / 100.0)), 1)
-                video.current_step = f"Transcribing Audio: {time_str} ({int(pct)}%)"
+            if video.transcript_json and len(video.transcript_json) > 100:
+                self.log_event(db, "INFO", f"Reusing saved transcript for video #{video_id} ({video.duration:.1f}s)")
+                transcript_data = json.loads(video.transcript_json)
+                video.progress = 40.0
+                video.current_step = "Transcript ready"
+                db.commit()
+            else:
+                video.status = "TRANSCRIBING"
+                video.current_step = "Transcribing Speech & Timestamps with Whisper AI"
+                video.progress = 25.0
                 db.commit()
 
-            transcript_data = transcriber.transcribe(video.file_path, progress_callback=on_transcribe_progress)
-            video.transcript_json = json.dumps(transcript_data)
-            db.commit()
+                self.log_event(db, "INFO", f"Extracting audio & transcribing video #{video_id} ({video.duration:.1f}s)...")
+                
+                def on_transcribe_progress(current_s: float, total_s: float):
+                    pct = min(100.0, (current_s / max(1.0, total_s)) * 100.0)
+                    cur_m = int(current_s // 60)
+                    cur_s = int(current_s % 60)
+                    tot_m = int(total_s // 60)
+                    tot_s = int(total_s % 60)
+                    time_str = f"{cur_m:02d}:{cur_s:02d} / {tot_m:02d}:{tot_s:02d}"
+                    video.progress = round(25.0 + (15.0 * (pct / 100.0)), 1)
+                    video.current_step = f"Transcribing Audio: {time_str} ({int(pct)}%)"
+                    db.commit()
+
+                transcript_data = transcriber.transcribe(video.file_path, progress_callback=on_transcribe_progress)
+                video.transcript_json = json.dumps(transcript_data)
+                db.commit()
 
             # ---------------------------------------------------------
-            # STEP 3: Detect Gaming Highlights (Gemini AI)
+            # STEP 3: Detect Gaming Highlights (Multimodal & Gemini AI)
             # ---------------------------------------------------------
             video.status = "ANALYZING"
-            video.current_step = "Detecting Highlights with Gemini AI"
-            video.progress = 45.0
+            video.current_step = "Detecting Highlights with Multimodal AI"
+            video.progress = 42.0
             db.commit()
 
             # Fetch settings
             min_clips_setting = db.query(AppSetting).filter(AppSetting.key == "clips_per_video").first()
-            target_clips = int(min_clips_setting.value) if min_clips_setting else 6
+            configured_clips = int(min_clips_setting.value) if min_clips_setting else 0
 
             min_dur_setting = db.query(AppSetting).filter(AppSetting.key == "min_clip_duration").first()
             min_dur = int(min_dur_setting.value) if min_dur_setting else settings.DEFAULT_MIN_CLIP_DURATION
@@ -137,14 +144,24 @@ class PipelineRunner:
             max_dur_setting = db.query(AppSetting).filter(AppSetting.key == "max_clip_duration").first()
             max_dur = int(max_dur_setting.value) if max_dur_setting else settings.DEFAULT_MAX_CLIP_DURATION
 
-            self.log_event(db, "INFO", f"Analyzing video timeline for top {target_clips} highlights...")
+            from .gemini_ai import get_duration_scaled_clip_targets
+            min_clips, max_clips = get_duration_scaled_clip_targets(video.duration, configured_clips)
+
+            meta["file_path"] = video.file_path
+            meta["duration"] = video.duration
+
+            self.log_event(
+                db, "INFO",
+                f"Analyzing video timeline ({video.duration / 60.0:.1f} mins) for {min_clips}-{max_clips} highlights across clutch, op_kill, rush, reaction & funny..."
+            )
             highlights = gemini_service.detect_highlights(
                 video_metadata=meta,
                 transcript_data=transcript_data,
-                min_clips=max(3, target_clips - 2),
-                max_clips=target_clips,
+                min_clips=min_clips,
+                max_clips=max_clips,
                 min_duration=min_dur,
-                max_duration=max_dur
+                max_duration=max_dur,
+                configured_clips_setting=configured_clips
             )
 
             self.log_event(db, "SUCCESS", f"Detected {len(highlights)} epic gaming highlights!")
@@ -152,6 +169,12 @@ class PipelineRunner:
             # ---------------------------------------------------------
             # STEP 4: Create Clip Records
             # ---------------------------------------------------------
+            # Clean up any existing unapproved clips for this video
+            existing_clips = db.query(Clip).filter(Clip.video_id == video.id, Clip.approved_for_publishing == False).all()
+            for old_c in existing_clips:
+                db.delete(old_c)
+            db.commit()
+
             crop_setting = db.query(AppSetting).filter(AppSetting.key == "default_crop_mode").first()
             default_crop = crop_setting.value if crop_setting else "blur_fill"
 
@@ -190,8 +213,8 @@ class PipelineRunner:
 
             total_clips = len(created_clips)
             for idx, clip in enumerate(created_clips, 1):
-                video.current_step = f"Rendering Clip {idx}/{total_clips} (Animated Subtitles + SFX)"
-                video.progress = 50.0 + (35.0 * (idx / total_clips))
+                video.current_step = f"Rendering Clip {idx}/{total_clips} [{clip.highlight_category.upper()}]: {clip.title[:30]}"
+                video.progress = round(45.0 + (45.0 * (idx / max(1, total_clips))), 1)
                 db.commit()
 
                 self.log_event(db, "INFO", f"Rendering Clip #{clip.id}: '{clip.title}' ({clip.duration:.1f}s, {clip.crop_mode})")
