@@ -110,6 +110,7 @@ class VideoDownloader:
             'outtmpl': str(output_dir / '%(id)s_%(title).50s.%(ext)s'),
             'merge_output_format': 'mp4',
             'quiet': True,
+            'noprogress': True,
             'no_warnings': True,
         }
         
