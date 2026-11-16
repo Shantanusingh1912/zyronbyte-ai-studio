@@ -25,6 +25,11 @@ class YouTubeUploader:
 
     def get_auth_url(self, client_id: str, client_secret: str, redirect_uri: str) -> Dict[str, str]:
         """Generates standard Google OAuth2 Authorization URL."""
+        client_id = client_id.strip()
+        client_secret = client_secret.strip()
+        redirect_uri = redirect_uri.strip()
+        logger.info(f"Generating YouTube OAuth URL for client_id: {client_id}")
+
         client_config = {
             "web": {
                 "client_id": client_id,

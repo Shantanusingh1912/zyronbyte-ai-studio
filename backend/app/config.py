@@ -1,8 +1,11 @@
 import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv()
 STORAGE_DIR = BASE_DIR / "storage"
 IMPORTS_DIR = STORAGE_DIR / "imports"
 CLIPS_DIR = STORAGE_DIR / "clips"
@@ -42,7 +45,7 @@ class Settings(BaseSettings):
     # Social Auth Settings
     YOUTUBE_CLIENT_ID: str = os.getenv("YOUTUBE_CLIENT_ID", "")
     YOUTUBE_CLIENT_SECRET: str = os.getenv("YOUTUBE_CLIENT_SECRET", "")
-    YOUTUBE_REDIRECT_URI: str = "http://localhost:8000/api/social/youtube/callback"
+    YOUTUBE_REDIRECT_URI: str = os.getenv("YOUTUBE_REDIRECT_URI", "http://localhost:8000/auth/youtube/callback")
     
     INSTAGRAM_ACCESS_TOKEN: str = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
     INSTAGRAM_ACCOUNT_ID: str = os.getenv("INSTAGRAM_ACCOUNT_ID", "")

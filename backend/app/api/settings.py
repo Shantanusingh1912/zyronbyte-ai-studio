@@ -58,11 +58,13 @@ def update_settings(update_data: SettingsUpdate, db: Session = Depends(get_db)):
         gemini_service.api_key = update_data.gemini_api_key
         gemini_service._client = None
     if update_data.youtube_client_id is not None:
-        set_val("youtube_client_id", update_data.youtube_client_id)
-        settings.YOUTUBE_CLIENT_ID = update_data.youtube_client_id
+        clean_yt_cid = update_data.youtube_client_id.strip().strip("\"'").rstrip(".")
+        set_val("youtube_client_id", clean_yt_cid)
+        settings.YOUTUBE_CLIENT_ID = clean_yt_cid
     if update_data.youtube_client_secret is not None:
-        set_val("youtube_client_secret", update_data.youtube_client_secret)
-        settings.YOUTUBE_CLIENT_SECRET = update_data.youtube_client_secret
+        clean_yt_sec = update_data.youtube_client_secret.strip().strip("\"'").rstrip(".")
+        set_val("youtube_client_secret", clean_yt_sec)
+        settings.YOUTUBE_CLIENT_SECRET = clean_yt_sec
     if update_data.instagram_access_token is not None:
         set_val("instagram_access_token", update_data.instagram_access_token)
         settings.INSTAGRAM_ACCESS_TOKEN = update_data.instagram_access_token

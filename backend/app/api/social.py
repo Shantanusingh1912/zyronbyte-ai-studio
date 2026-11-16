@@ -45,6 +45,12 @@ def get_accounts(db: Session = Depends(get_db)):
             ))
     return results
 
+def _clean_credential(val: str | None) -> str:
+    """Strips whitespace, quotes, and trailing periods from credentials."""
+    if not val:
+        return ""
+    return val.strip().strip("\"'").rstrip(".")
+
 @router.get("/youtube/auth-url")
 def get_youtube_auth_url(db: Session = Depends(get_db)):
     """Generates Google OAuth URL for channel authentication."""
@@ -52,8 +58,28 @@ def get_youtube_auth_url(db: Session = Depends(get_db)):
     cid_setting = db.query(AppSetting).filter(AppSetting.key == "youtube_client_id").first()
     sec_setting = db.query(AppSetting).filter(AppSetting.key == "youtube_client_secret").first()
 
-    client_id = (cid_setting.value if cid_setting else "") or settings.YOUTUBE_CLIENT_ID
-    client_secret = (sec_setting.value if sec_setting else "") or settings.YOUTUBE_CLIENT_SECRET
+    db_cid = _clean_credential(cid_setting.value if cid_setting and cid_setting.value else "")
+    db_sec = _clean_credential(sec_setting.value if sec_setting and sec_setting.value else "")
+
+    env_cid = _clean_credential(settings.YOUTUBE_CLIENT_ID or os.getenv("YOUTUBE_CLIENT_ID", ""))
+    env_sec = _clean_credential(settings.YOUTUBE_CLIENT_SECRET or os.getenv("YOUTUBE_CLIENT_SECRET", ""))
+
+    client_id = db_cid or env_cid
+    client_secret = db_sec or env_sec
+
+    # Sync cleaned values back to DB if needed
+    if client_id and (not db_cid or (cid_setting and cid_setting.value != client_id)):
+        if not cid_setting:
+            db.add(AppSetting(key="youtube_client_id", value=client_id))
+        else:
+            cid_setting.value = client_id
+        db.commit()
+    if client_secret and (not db_sec or (sec_setting and sec_setting.value != client_secret)):
+        if not sec_setting:
+            db.add(AppSetting(key="youtube_client_secret", value=client_secret))
+        else:
+            sec_setting.value = client_secret
+        db.commit()
 
     if not client_id or not client_secret:
         raise HTTPException(
@@ -74,8 +100,8 @@ def youtube_callback(code: str, db: Session = Depends(get_db)):
     cid_setting = db.query(AppSetting).filter(AppSetting.key == "youtube_client_id").first()
     sec_setting = db.query(AppSetting).filter(AppSetting.key == "youtube_client_secret").first()
 
-    client_id = (cid_setting.value if cid_setting else "") or settings.YOUTUBE_CLIENT_ID
-    client_secret = (sec_setting.value if sec_setting else "") or settings.YOUTUBE_CLIENT_SECRET
+    client_id = _clean_credential((cid_setting.value if cid_setting else "") or settings.YOUTUBE_CLIENT_ID)
+    client_secret = _clean_credential((sec_setting.value if sec_setting else "") or settings.YOUTUBE_CLIENT_SECRET)
 
     try:
         token_info = youtube_uploader.exchange_code_for_tokens(
@@ -100,7 +126,7 @@ def youtube_callback(code: str, db: Session = Depends(get_db)):
         db.commit()
 
         # Redirect user back to dashboard with success query param
-        return RedirectResponse(url="http://localhost:5173/?youtube_connected=true")
+        return RedirectResponse(url="/?youtube_connected=true")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OAuth exchange failed: {e}")
 
