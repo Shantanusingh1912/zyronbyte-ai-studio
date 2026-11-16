@@ -15,6 +15,9 @@ from ..services.youtube_uploader import youtube_uploader
 from ..services.instagram_uploader import instagram_uploader
 from ..services.gemini_ai import gemini_service
 from ..config import settings
+import logging
+
+logger = logging.getLogger("zyronbyte.clips")
 
 router = APIRouter(prefix="/clips", tags=["Clips"])
 
@@ -247,8 +250,8 @@ def publish_clip_now(clip_id: int, req: PublishRequest, db: Session = Depends(ge
 
     # Process immediately instead of waiting for 30s background poll
     try:
-        from ..services.scheduler_service import scheduler_service
-        scheduler_service._process_single_publish_task(db, task)
+        from ..services.scheduler_service import automation_scheduler
+        automation_scheduler._process_single_publish_task(db, task)
         db.refresh(clip)
     except Exception as e:
         logger.error(f"Error during immediate publishing execution: {e}")

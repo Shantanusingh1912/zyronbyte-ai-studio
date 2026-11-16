@@ -131,7 +131,14 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platforms, privacy_status: 'public' })
     });
-    if (!res.ok) throw new Error('Publish failed');
+    if (!res.ok) {
+      let msg = 'Publish failed';
+      try {
+        const errData = await res.json();
+        msg = errData.detail || errData.message || msg;
+      } catch (e) {}
+      throw new Error(msg);
+    }
     return res.json();
   },
 
@@ -141,7 +148,14 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platforms, schedule_time: scheduleTime })
     });
-    if (!res.ok) throw new Error('Scheduling failed');
+    if (!res.ok) {
+      let msg = 'Scheduling failed';
+      try {
+        const errData = await res.json();
+        msg = errData.detail || errData.message || msg;
+      } catch (e) {}
+      throw new Error(msg);
+    }
     return res.json();
   },
 
