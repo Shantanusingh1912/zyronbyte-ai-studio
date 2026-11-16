@@ -83,10 +83,16 @@ class AutomationScheduler:
         ig_account = db.query(SocialAccount).filter(SocialAccount.platform == "instagram", SocialAccount.is_connected == True).first()
 
         success = False
-        error_msg = ""
+        error_msgs = []
 
-        # Publish to YouTube if requested
-        if task.platform in ["youtube", "both"]:
+        # Parse requested platforms (supports "youtube", "instagram", "youtube,instagram", "both")
+        raw_platform = task.platform or "youtube"
+        requested_platforms = [p.strip().lower() for p in raw_platform.split(",") if p.strip()]
+        if "both" in requested_platforms:
+            requested_platforms = ["youtube", "instagram"]
+
+        # 1. Publish to YouTube if requested
+        if "youtube" in requested_platforms:
             if yt_account and yt_account.credentials_json:
                 try:
                     res = youtube_uploader.upload_short(
@@ -100,17 +106,18 @@ class AutomationScheduler:
                     clip.youtube_video_id = res.get("video_id")
                     clip.status = "PUBLISHED"
                     clip.published_at = datetime.utcnow()
+                    clip.error_message = None
                     success = True
+                    logger.info(f"YouTube upload succeeded for clip #{clip.id}: {clip.youtube_video_id}")
                 except Exception as e:
                     logger.error(f"YouTube upload failed for clip #{clip.id}: {e}")
                     clip.youtube_status = "FAILED"
-                    clip.error_message = str(e)
-                    error_msg += f"YouTube: {str(e)}; "
+                    error_msgs.append(f"YouTube: {str(e)}")
             else:
-                error_msg += "YouTube account not connected; "
+                error_msgs.append("YouTube account not connected")
 
-        # Publish to Instagram if requested
-        if task.platform in ["instagram", "both"]:
+        # 2. Publish to Instagram if requested
+        if "instagram" in requested_platforms:
             if ig_account and ig_account.credentials_json:
                 try:
                     # Note: in local environments, IG requires a staged public URL or cloud bucket
@@ -118,27 +125,35 @@ class AutomationScheduler:
                 except Exception as e:
                     logger.error(f"Instagram upload failed for clip #{clip.id}: {e}")
                     clip.instagram_status = "FAILED"
-                    error_msg += f"Instagram: {str(e)}; "
+                    error_msgs.append(f"Instagram: {str(e)}")
+            else:
+                # If YouTube was requested and succeeded, do not fail clip due to unconfigured Instagram
+                if "youtube" not in requested_platforms or not success:
+                    error_msgs.append("Instagram account not connected")
+                else:
+                    clip.instagram_status = "NOT_CONNECTED"
 
+        combined_error = "; ".join(error_msgs)
         if success:
             task.status = "SUCCESS"
             task.completed_at = datetime.utcnow()
+            task.last_error = None
             # Log success
             log_entry = SystemLog(
                 level="SUCCESS",
                 module="PUBLISHER",
-                message=f"Successfully published Clip #{clip.id}: '{clip.title}'"
+                message=f"Successfully published Clip #{clip.id}: '{clip.title}' (Video ID: {clip.youtube_video_id})"
             )
             db.add(log_entry)
         else:
             task.status = "FAILED"
-            task.last_error = error_msg
+            task.last_error = combined_error or "Publishing failed for selected platforms."
             clip.status = "FAILED"
-            clip.error_message = error_msg
+            clip.error_message = combined_error or "Publishing failed for selected platforms."
             log_entry = SystemLog(
                 level="ERROR",
                 module="PUBLISHER",
-                message=f"Publish failed for Clip #{clip.id}: {error_msg}"
+                message=f"Publish failed for Clip #{clip.id}: {task.last_error}"
             )
             db.add(log_entry)
 

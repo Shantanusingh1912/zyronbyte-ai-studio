@@ -146,6 +146,14 @@ class YouTubeUploader:
             scopes=creds_data.get("scopes", SCOPES)
         )
 
+        from google.auth.transport.requests import Request
+        if (not credentials.valid or credentials.expired) and credentials.refresh_token:
+            try:
+                credentials.refresh(Request())
+                logger.info("Refreshed YouTube OAuth access token successfully.")
+            except Exception as re:
+                logger.warning(f"Could not refresh YouTube credentials: {re}")
+
         youtube = build("youtube", "v3", credentials=credentials)
 
         # Ensure #Shorts is present in title or description so YouTube tags it as a Short

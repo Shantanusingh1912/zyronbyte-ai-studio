@@ -158,6 +158,7 @@ def approve_clip(clip_id: int, db: Session = Depends(get_db)):
 
     clip.approved_for_publishing = True
     clip.status = "APPROVED"
+    clip.error_message = None
     db.commit()
     db.refresh(clip)
     return clip
@@ -228,19 +229,37 @@ def publish_clip_now(clip_id: int, req: PublishRequest, db: Session = Depends(ge
     if not clip.edited_clip_path or not os.path.exists(clip.edited_clip_path):
         raise HTTPException(status_code=400, detail="Edited video clip file does not exist")
 
+    platform_str = ",".join(req.platforms) if req.platforms else "youtube"
+
     # Add priority task to queue with scheduled_time = now
     task = PublishQueue(
         clip_id=clip.id,
-        platform=",".join(req.platforms),
+        platform=platform_str,
         scheduled_time=datetime.utcnow(),
         status="QUEUED"
     )
     db.add(task)
     clip.status = "SCHEDULED"
     clip.approved_for_publishing = True
+    clip.error_message = None
     db.commit()
+    db.refresh(task)
 
-    return {"message": "Publishing task queued for immediate execution", "clip_id": clip_id}
+    # Process immediately instead of waiting for 30s background poll
+    try:
+        from ..services.scheduler_service import scheduler_service
+        scheduler_service._process_single_publish_task(db, task)
+        db.refresh(clip)
+    except Exception as e:
+        logger.error(f"Error during immediate publishing execution: {e}")
+
+    return {
+        "message": "Publishing task executed",
+        "clip_id": clip_id,
+        "status": clip.status,
+        "youtube_video_id": clip.youtube_video_id,
+        "youtube_status": clip.youtube_status
+    }
 
 @router.post("/{clip_id}/schedule")
 def schedule_clip(clip_id: int, req: PublishRequest, db: Session = Depends(get_db)):
