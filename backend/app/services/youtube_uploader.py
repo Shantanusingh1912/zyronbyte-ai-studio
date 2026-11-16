@@ -12,6 +12,9 @@ from ..config import settings
 
 logger = logging.getLogger("zyronbyte.youtube")
 
+# In-memory store for PKCE verifiers keyed by OAuth state
+_oauth_verifiers: Dict[str, str] = {}
+
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly"
@@ -24,7 +27,7 @@ class YouTubeUploader:
     """
 
     def get_auth_url(self, client_id: str, client_secret: str, redirect_uri: str) -> Dict[str, str]:
-        """Generates standard Google OAuth2 Authorization URL."""
+        """Generates standard Google OAuth2 Authorization URL with PKCE verifier."""
         client_id = client_id.strip()
         client_secret = client_secret.strip()
         redirect_uri = redirect_uri.strip()
@@ -49,16 +52,25 @@ class YouTubeUploader:
             include_granted_scopes='true',
             prompt='consent'
         )
-        return {"auth_url": auth_url, "state": state}
+
+        # Store PKCE code_verifier so it can be re-applied upon callback
+        verifier = getattr(flow, 'code_verifier', None)
+        if verifier:
+            _oauth_verifiers[state] = verifier
+            logger.info(f"Saved PKCE code_verifier for state: {state[:8]}...")
+
+        return {"auth_url": auth_url, "state": state, "code_verifier": verifier or ""}
 
     def exchange_code_for_tokens(
         self,
         code: str,
         client_id: str,
         client_secret: str,
-        redirect_uri: str
+        redirect_uri: str,
+        state: Optional[str] = None,
+        code_verifier: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Exchanges auth code for user credentials and fetches channel info."""
+        """Exchanges auth code for user credentials and fetches channel info using PKCE verifier."""
         client_config = {
             "web": {
                 "client_id": client_id,
@@ -73,6 +85,15 @@ class YouTubeUploader:
             scopes=SCOPES,
             redirect_uri=redirect_uri
         )
+
+        # Resolve verifier from explicit argument, in-memory store, or state
+        resolved_verifier = code_verifier or (state and _oauth_verifiers.pop(state, None))
+        if resolved_verifier:
+            flow.code_verifier = resolved_verifier
+            logger.info("Applied PKCE code_verifier to OAuth flow before token fetch.")
+        else:
+            logger.warning("No PKCE code_verifier available for token exchange.")
+
         flow.fetch_token(code=code)
         credentials = flow.credentials
 

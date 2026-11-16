@@ -73,12 +73,12 @@ def health_check():
 @app.get("/api/auth/youtube/callback")
 @app.get("/oauth2callback")
 @app.get("/callback")
-def google_oauth_callback_aliases(code: str = "", error: str = "", db = Depends(get_db)):
+def google_oauth_callback_aliases(code: str = "", state: str = "", error: str = "", db = Depends(get_db)):
     if error:
         logger.error(f"Google OAuth reported error: {error}")
         return RedirectResponse(url=f"/?oauth_error={error}")
     from .api.social import youtube_callback
-    return youtube_callback(code=code, db=db)
+    return youtube_callback(code=code, state=state, db=db)
 
 # Mount Frontend Built Static Files
 frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"

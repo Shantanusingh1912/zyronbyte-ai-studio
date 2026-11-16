@@ -92,23 +92,51 @@ def get_youtube_auth_url(db: Session = Depends(get_db)):
         client_secret=client_secret,
         redirect_uri=settings.YOUTUBE_REDIRECT_URI
     )
-    return auth_info
+
+    # Persist code_verifier in database for crash-resilient PKCE exchange
+    verifier = auth_info.get("code_verifier")
+    state = auth_info.get("state")
+    if verifier and state:
+        def _upsert(k: str, v: str):
+            row = db.query(AppSetting).filter(AppSetting.key == k).first()
+            if not row:
+                db.add(AppSetting(key=k, value=v))
+            else:
+                row.value = v
+        _upsert(f"pkce_{state}", verifier)
+        _upsert("pkce_latest", verifier)
+        db.commit()
+
+    return {"auth_url": auth_info["auth_url"], "state": auth_info["state"]}
 
 @router.get("/youtube/callback")
-def youtube_callback(code: str, db: Session = Depends(get_db)):
-    """Handles OAuth redirect from Google."""
+def youtube_callback(code: str, state: str = "", db: Session = Depends(get_db)):
+    """Handles OAuth redirect from Google with PKCE verifier resolution."""
     cid_setting = db.query(AppSetting).filter(AppSetting.key == "youtube_client_id").first()
     sec_setting = db.query(AppSetting).filter(AppSetting.key == "youtube_client_secret").first()
 
     client_id = _clean_credential((cid_setting.value if cid_setting else "") or settings.YOUTUBE_CLIENT_ID)
     client_secret = _clean_credential((sec_setting.value if sec_setting else "") or settings.YOUTUBE_CLIENT_SECRET)
 
+    # Retrieve code_verifier from DB (state-keyed or latest fallback)
+    code_verifier = None
+    if state:
+        pkce_row = db.query(AppSetting).filter(AppSetting.key == f"pkce_{state}").first()
+        if pkce_row:
+            code_verifier = pkce_row.value
+    if not code_verifier:
+        pkce_latest = db.query(AppSetting).filter(AppSetting.key == "pkce_latest").first()
+        if pkce_latest:
+            code_verifier = pkce_latest.value
+
     try:
         token_info = youtube_uploader.exchange_code_for_tokens(
             code=code,
             client_id=client_id,
             client_secret=client_secret,
-            redirect_uri=settings.YOUTUBE_REDIRECT_URI
+            redirect_uri=settings.YOUTUBE_REDIRECT_URI,
+            state=state,
+            code_verifier=code_verifier
         )
 
         acc = db.query(SocialAccount).filter(SocialAccount.platform == "youtube").first()
@@ -123,6 +151,10 @@ def youtube_callback(code: str, db: Session = Depends(get_db)):
         acc.is_connected = True
         acc.updated_at = datetime.utcnow()
 
+        # Clean up temporary PKCE verifiers
+        if state:
+            db.query(AppSetting).filter(AppSetting.key == f"pkce_{state}").delete()
+        db.query(AppSetting).filter(AppSetting.key == "pkce_latest").delete()
         db.commit()
 
         # Redirect user back to dashboard with success query param
