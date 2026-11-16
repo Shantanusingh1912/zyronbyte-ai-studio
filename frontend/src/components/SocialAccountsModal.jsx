@@ -3,7 +3,7 @@ import { X, CheckCircle2, AlertCircle, ExternalLink, Key, ShieldCheck } from 'lu
 import { YoutubeIcon, InstagramIcon } from './Icons';
 import { api } from '../api';
 
-export default function SocialAccountsModal({ isOpen, onClose, onRefresh }) {
+export default function SocialAccountsModal({ isOpen, onClose, onRefresh, onAccountsUpdated }) {
   if (!isOpen) return null;
 
   const [accounts, setAccounts] = useState([]);
@@ -48,7 +48,8 @@ export default function SocialAccountsModal({ isOpen, onClose, onRefresh }) {
       await api.connectInstagram(igToken, igAccountId);
       alert('Instagram Professional account connected successfully!');
       fetchAccounts();
-      onRefresh();
+      if (typeof onRefresh === 'function') onRefresh();
+      if (typeof onAccountsUpdated === 'function') onAccountsUpdated();
     } catch (err) {
       setError(err.message || 'Instagram connection failed');
     } finally {
@@ -61,7 +62,8 @@ export default function SocialAccountsModal({ isOpen, onClose, onRefresh }) {
     try {
       await api.disconnectSocial(platform);
       fetchAccounts();
-      onRefresh();
+      if (typeof onRefresh === 'function') onRefresh();
+      if (typeof onAccountsUpdated === 'function') onAccountsUpdated();
     } catch (err) {
       alert(`Disconnect failed: ${err.message}`);
     }

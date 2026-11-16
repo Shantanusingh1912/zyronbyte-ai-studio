@@ -234,6 +234,7 @@ export default function App() {
           clip={previewClip}
           isOpen={Boolean(previewClip)}
           onClose={() => setPreviewClip(null)}
+          onRefresh={fetchData}
           onClipUpdated={() => {
             fetchData();
             setPreviewClip(null);
@@ -245,6 +246,7 @@ export default function App() {
         <SocialAccountsModal
           isOpen={isSocialOpen}
           onClose={() => setIsSocialOpen(false)}
+          onRefresh={fetchData}
           onAccountsUpdated={fetchData}
         />
       )}
@@ -253,6 +255,7 @@ export default function App() {
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
+          onRefresh={fetchData}
           onSettingsUpdated={fetchData}
         />
       )}

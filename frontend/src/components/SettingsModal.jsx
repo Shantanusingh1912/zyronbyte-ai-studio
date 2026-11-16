@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Key, Sliders, Shield, Save, CheckCircle } from 'lucide-react';
 import { api } from '../api';
 
-export default function SettingsModal({ isOpen, onClose, onRefresh }) {
+export default function SettingsModal({ isOpen, onClose, onRefresh, onSettingsUpdated }) {
   if (!isOpen) return null;
 
   const [geminiKey, setGeminiKey] = useState('');
@@ -55,7 +55,8 @@ export default function SettingsModal({ isOpen, onClose, onRefresh }) {
       await api.updateSettings(payload);
       setSuccessMsg('Settings saved successfully!');
       setTimeout(() => setSuccessMsg(''), 3000);
-      onRefresh();
+      if (typeof onRefresh === 'function') onRefresh();
+      if (typeof onSettingsUpdated === 'function') onSettingsUpdated();
     } catch (err) {
       alert(`Failed to save settings: ${err.message}`);
     } finally {

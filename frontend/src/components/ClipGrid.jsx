@@ -47,7 +47,7 @@ export default function ClipGrid({
     e.stopPropagation();
     try {
       await api.approveClip(clipId);
-      onRefresh();
+      if (typeof onRefresh === 'function') onRefresh();
     } catch (err) {
       alert(`Approval error: ${err.message}`);
     }
@@ -57,7 +57,7 @@ export default function ClipGrid({
     e.stopPropagation();
     try {
       await api.rejectClip(clipId);
-      onRefresh();
+      if (typeof onRefresh === 'function') onRefresh();
     } catch (err) {
       alert(`Reject error: ${err.message}`);
     }
@@ -66,9 +66,9 @@ export default function ClipGrid({
   const handlePublishNow = async (e, clipId) => {
     e.stopPropagation();
     try {
-      await api.publishNow(clipId, ['youtube', 'instagram']);
-      alert('Clip added to immediate publishing queue!');
-      onRefresh();
+      await api.publishNow(clipId, ['youtube']);
+      alert('Clip published / queued for YouTube Shorts!');
+      if (typeof onRefresh === 'function') onRefresh();
     } catch (err) {
       alert(`Publish error: ${err.message}`);
     }

@@ -8,8 +8,13 @@ import {
 import { YoutubeIcon, InstagramIcon } from './Icons';
 import { api } from '../api';
 
-export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
+export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh, onClipUpdated }) {
   if (!isOpen || !clip) return null;
+
+  const notifyRefresh = () => {
+    if (typeof onRefresh === 'function') onRefresh();
+    if (typeof onClipUpdated === 'function') onClipUpdated();
+  };
 
   const [activeTab, setActiveTab] = useState('trim'); // 'trim', 'youtube', 'instagram', 'qc', 'style'
   const [startTime, setStartTime] = useState(clip.start_time ?? 0.0);
@@ -67,7 +72,7 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
       setIgCaption(updated.instagram_caption || '');
       setClipGame(updated.game_title || clipGame);
       alert(`AI metadata refreshed specifically for ${clipGame}!`);
-      if (onRefresh) onRefresh();
+      notifyRefresh();
     } catch (err) {
       alert(`Regeneration failed: ${err.message}`);
     } finally {
@@ -91,7 +96,7 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
         sfx_enabled: sfxEnabled
       });
       alert('Clip settings and timestamps saved!');
-      onRefresh();
+      notifyRefresh();
     } catch (err) {
       alert(`Save failed: ${err.message}`);
     } finally {
@@ -115,7 +120,7 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
       });
       await api.rerenderClip(clip.id);
       alert('Clip successfully re-cut and rendered with updated timestamps!');
-      onRefresh();
+      notifyRefresh();
     } catch (err) {
       alert(`Re-cut failed: ${err.message}`);
     } finally {
@@ -126,7 +131,7 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
   const handleApprove = async () => {
     try {
       await api.approveClip(clip.id);
-      onRefresh();
+      notifyRefresh();
       onClose();
     } catch (err) {
       alert(`Approve failed: ${err.message}`);
@@ -136,9 +141,9 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
   const handlePublishNow = async () => {
     setIsPublishing(true);
     try {
-      await api.publishNow(clip.id, ['youtube', 'instagram']);
-      alert('Clip added to immediate publishing queue!');
-      onRefresh();
+      await api.publishNow(clip.id, ['youtube']);
+      alert('Clip successfully queued / published to YouTube Shorts!');
+      notifyRefresh();
       onClose();
     } catch (err) {
       alert(`Publish failed: ${err.message}`);
@@ -154,9 +159,9 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
     }
     setIsPublishing(true);
     try {
-      await api.scheduleClip(clip.id, new Date(scheduleTime).toISOString(), ['youtube', 'instagram']);
+      await api.scheduleClip(clip.id, new Date(scheduleTime).toISOString(), ['youtube']);
       alert('Clip scheduled successfully!');
-      onRefresh();
+      notifyRefresh();
       onClose();
     } catch (err) {
       alert(`Scheduling failed: ${err.message}`);
