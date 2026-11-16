@@ -7,6 +7,7 @@ from google import genai
 from google.genai import types
 from ..config import settings
 from .audio_analyzer import audio_analyzer
+from .game_detector import game_detector
 
 logger = logging.getLogger("zyronbyte.gemini")
 
@@ -80,6 +81,13 @@ class GeminiAIService:
         """
         video_duration = float(video_metadata.get("duration", 0.0))
 
+        # Resolve the game title (user provided or auto-detected)
+        game_title = video_metadata.get("game_title")
+        if not game_title:
+            detected = game_detector.detect_game(video_metadata.get("title", ""))
+            game_title = detected["display_name"]
+        video_metadata["game_title"] = game_title
+
         # Dynamically scale clips based on video duration if not explicitly passed
         if min_clips is None or max_clips is None:
             min_clips, max_clips = get_duration_scaled_clip_targets(video_duration, configured_clips_setting)
@@ -89,7 +97,7 @@ class GeminiAIService:
         # If Gemini API client is available and key is configured, call Gemini
         if client and self.api_key:
             try:
-                logger.info(f"Calling Gemini API for intelligent highlight detection (target {min_clips}-{max_clips} clips)...")
+                logger.info(f"Calling Gemini API for intelligent highlight detection for '{game_title}' (target {min_clips}-{max_clips} clips)...")
                 gemini_results = self._gemini_analyze_highlights(
                     client=client,
                     video_metadata=video_metadata,
@@ -97,7 +105,8 @@ class GeminiAIService:
                     min_clips=min_clips,
                     max_clips=max_clips,
                     min_duration=min_duration,
-                    max_duration=max_duration
+                    max_duration=max_duration,
+                    game_title=game_title
                 )
                 if gemini_results and len(gemini_results) >= min_clips:
                     return gemini_results
@@ -111,7 +120,8 @@ class GeminiAIService:
             min_clips=min_clips,
             max_clips=max_clips,
             min_duration=min_duration,
-            max_duration=max_duration
+            max_duration=max_duration,
+            game_title=game_title
         )
 
     def _gemini_analyze_highlights(
@@ -122,11 +132,14 @@ class GeminiAIService:
         min_clips: int,
         max_clips: int,
         min_duration: int,
-        max_duration: int
+        max_duration: int,
+        game_title: str = "General Gaming"
     ) -> List[Dict[str, Any]]:
         """Prompt Gemini with video info and transcript segments to extract balanced highlights."""
         duration = float(video_metadata.get("duration", 0.0))
         duration_mins = duration / 60.0
+        game_prof = game_detector.get_game_profile(game_title)
+        short_game_tag = game_prof["short_name"].replace(" ", "")
 
         # Sample segments evenly across the video to avoid truncating long videos
         raw_segments = transcript_data.get("segments", [])
@@ -140,14 +153,21 @@ class GeminiAIService:
 You are the Lead Video Editor and Social Media Director for a top gaming YouTube channel called 'ZyronByteYT'.
 Analyze this gaming video transcript and timeline to identify the top {min_clips} to {max_clips} viral gaming highlights.
 
+TARGET GAME: {game_title}
+CRITICAL REQUIREMENT - AUTHENTIC TO {game_title.upper()}:
+- This footage is strictly from '{game_title}'.
+- You MUST write titles, descriptions, hashtags, and social captions specifically tailored to '{game_title}'.
+- ABSOLUTELY DO NOT use terminology, mechanics, or hashtags from other games (for example: if '{game_title}' is Grand Theft Auto V, Valorant, or Minecraft, DO NOT mention 'BGMI', 'Chicken Dinner', or 'PUBG'!).
+- Use mechanics, weapon names, vehicles, mission references, and hashtags authentic to '{game_title}'.
+
 CRITICAL REQUIREMENT - DIVERSE CATEGORIES:
 Do NOT make all clips the same category or repeat similar titles.
 You MUST provide a balanced distribution across these categories:
-- 'clutch': 1v3/1v4, solo vs squad, final circle showdown, last man standing, winner chicken dinner (at least 25%).
+- 'clutch': 1v3/1v4, solo survival, final showdown, last man standing, high stakes escape (at least 25%).
 - 'op_kill': One-tap sniper headshots, squad wipes, spray transfers, clean flick shots, insane eliminations (at least 25%).
-- 'rush': High action pushes, third-party ambushes, airdrop fights, aggressive close-quarters combat (20%).
-- 'reaction': Screaming, hype moments, "Oh my God", "Hacker hai kya", genuine disbelief (15%).
-- 'funny': Hilarious fails, grenade accidents, bot encounters, vehicle crashes, awkward physics (15%).
+- 'rush': High action pushes, aggressive close-quarters combat, speed escapes (20%).
+- 'reaction': Screaming, hype moments, "Oh my God", genuine disbelief (15%).
+- 'funny': Hilarious fails, accidents, bot/NPC encounters, vehicle crashes, awkward physics (15%).
 
 SPECIFICATIONS:
 - Video Total Duration: {duration:.1f} seconds ({duration_mins:.1f} minutes).
@@ -156,9 +176,10 @@ SPECIFICATIONS:
 - Provide exact start_time and end_time (in seconds, e.g. 45.0, 80.0).
 - Categorize each highlight accurately: 'clutch', 'op_kill', 'rush', 'reaction', or 'funny'.
 - Excitement score from 80 to 99.
-- Write a punchy YouTube Shorts title (under 60 chars) with #Shorts #Gaming #ZyronByte.
+- Write a punchy YouTube Shorts title (under 65 chars) with #{short_game_tag} #Shorts #ZyronByte.
+- Write a compelling YouTube description with call to action for @ZyronByteYT.
 - Write an engaging Instagram Reel caption with call to action.
-- Provide 5-8 relevant gaming hashtags and SEO keywords.
+- Provide 5-8 relevant hashtags and SEO keywords specifically for {game_title}.
 
 TRANSCRIPT TIMELINE DATA:
 {json.dumps(sampled_segments, indent=2)}
@@ -169,14 +190,15 @@ Return strictly a valid JSON array of objects conforming to this schema:
   {{
     "title": "Short descriptive clip title",
     "category": "clutch",
-    "description": "Why this is an epic highlight",
+    "description": "Why this is an epic highlight in {game_title}",
+    "youtube_description": "Catchy YouTube description for {game_title} with call to action and hashtags",
     "score": 96,
     "start_time": 45.0,
     "end_time": 80.0,
-    "youtube_title": "HE PULLED OFF THE IMPOSSIBLE 1v3! 🔥 #Shorts #Gaming #ZyronByte",
-    "instagram_caption": "Down to 1 HP and the last bullet... Would you have won this? Drop a 💀 if you'd uninstall! Follow @ZyronByteYT for daily gaming shorts!",
-    "hashtags": ["#gaming", "#gamer", "#Shorts", "#clutch", "#epicmoment", "#ZyronByte"],
-    "keywords": ["gaming clutch", "insane play", "fps highlight"]
+    "youtube_title": "HE PULLED OFF THE IMPOSSIBLE ESCAPE! 🔥 #{short_game_tag} #Shorts #ZyronByte",
+    "instagram_caption": "Down to 1 HP and the last bullet in {game_title}... Would you have survived this? Drop a 💀 in the comments! Follow @ZyronByteYT for daily shorts!",
+    "hashtags": {json.dumps(game_prof["hashtags"][:6])},
+    "keywords": {json.dumps(game_prof["keywords"][:6])}
   }}
 ]
 """
@@ -201,7 +223,8 @@ Return strictly a valid JSON array of objects conforming to this schema:
         min_clips: int,
         max_clips: int,
         min_duration: int,
-        max_duration: int
+        max_duration: int,
+        game_title: str = "General Gaming"
     ) -> List[Dict[str, Any]]:
         """
         Multimodal Heuristic Highlight Detector:
@@ -473,60 +496,79 @@ Return strictly a valid JSON array of objects conforming to this schema:
         selected.sort(key=lambda x: x["start_time"])
 
         # Step F: Generate High-Impact Titles, Captions, and Metadata per Category
+        game_prof = game_detector.get_game_profile(game_title)
+        short_game_tag = game_prof["short_name"].replace(" ", "")
+
         category_title_counters = {cat: 0 for cat in cat_keys}
         results = []
 
         for idx, item in enumerate(selected, 1):
             cat = item["category"]
-            cat_info = CATEGORIES.get(cat, CATEGORIES["clutch"])
-            titles_pool = cat_info["titles"]
+            # Use game-authentic titles from the game profile
+            game_cat_titles = game_prof.get("category_titles", {}).get(cat)
+            if not game_cat_titles:
+                cat_info = CATEGORIES.get(cat, CATEGORIES["clutch"])
+                game_cat_titles = cat_info["titles"]
 
             # Select title cyclically for this category
-            t_idx = category_title_counters[cat] % len(titles_pool)
+            t_idx = category_title_counters[cat] % len(game_cat_titles)
             category_title_counters[cat] += 1
-            clip_title = titles_pool[t_idx]
+            clip_title = game_cat_titles[t_idx]
 
-            yt_title = f"{clip_title} #Shorts #Gaming #ZyronByte"[:95]
-            ig_caption = (
-                f"{clip_title}\n\n"
-                f"Rate this {cat.upper()} play 1-10 in the comments! 👇\n"
-                f"Drop a follow @ZyronByteYT for daily gaming shorts & livestream highlights!\n\n"
-                f"#gaming #gamers #shorts #reels #{cat} #gamingcommunity #zyronbyte"
+            yt_title = f"{clip_title} #{short_game_tag} #Shorts #ZyronByte"[:95]
+            yt_desc = (
+                game_prof["description_template"].format(
+                    category_upper=cat.upper(), clip_title=clip_title
+                )
+                + "\n\n"
+                + " ".join(game_prof["hashtags"])
             )
-            hashtags = ["#Shorts", "#gaming", "#gamer", "#zyronbyte", f"#{cat}", "#viralclips"]
-            keywords = ["gaming highlights", "best gaming moments", "zyronbyteyt", cat, "bgmi", "fps"]
+            ig_caption = game_prof["caption_template"].format(clip_title=clip_title)
+            hashtags = game_prof["hashtags"]
+            keywords = game_prof["keywords"] + [cat, "gaming shorts"]
 
             results.append({
                 "title": f"Clip #{idx}: {clip_title}",
                 "category": cat,
-                "description": f"High intensity {cat.upper()} highlight extracted from gameplay at {item['start_time']}s.",
+                "game_title": game_prof["display_name"],
+                "description": f"High intensity {cat.upper()} highlight from {game_prof['display_name']} at {item['start_time']}s.",
                 "score": item["score"],
                 "start_time": item["start_time"],
                 "end_time": item["end_time"],
                 "youtube_title": yt_title,
+                "youtube_description": yt_desc,
                 "instagram_caption": ig_caption,
                 "hashtags": hashtags,
                 "keywords": keywords
             })
 
-        logger.info(f"Heuristic highlight detector finalized {len(results)} clips across categories: "
+        logger.info(f"Heuristic highlight detector finalized {len(results)} clips for '{game_prof['display_name']}' across categories: "
                     f"{[r['category'] for r in results]}")
         return results
 
-    def generate_single_clip_metadata(self, clip_title: str, category: str) -> Dict[str, Any]:
-        """Generates refreshed social metadata for an individual clip."""
+    def generate_single_clip_metadata(self, clip_title: str, category: str, game_title: Optional[str] = None) -> Dict[str, Any]:
+        """Generates refreshed social metadata for an individual clip authentic to its specific game."""
+        game_prof = game_detector.get_game_profile(game_title)
+        g_name = game_prof["display_name"]
+        short_tag = game_prof["short_name"].replace(" ", "")
+
         client = self.get_client()
         if client and self.api_key:
             try:
                 prompt = f"""
-Generate viral social media metadata for a gaming short titled '{clip_title}' with category '{category}'.
+Generate viral social media metadata for a gaming short titled '{clip_title}' with category '{category}' specifically for the game '{g_name}'.
 Target creator: ZyronByteYT.
+CRITICAL MANDATE:
+- This clip is strictly from the game '{g_name}'.
+- Write content authentic to '{g_name}'.
+- DO NOT mention terms, weapons, or hashtags from other games (such as BGMI, PUBG, Chicken Dinner if '{g_name}' is not BGMI!).
 Return valid JSON:
 {{
-  "youtube_title": "Catchy Shorts title under 60 chars with #Shorts #Gaming",
-  "instagram_caption": "Engaging IG Reels caption with CTA",
-  "hashtags": ["#gaming", "#gamer", "#Shorts", "#ZyronByte", "#{category}"],
-  "keywords": ["gaming", "{category}", "highlight"]
+  "youtube_title": "Catchy Shorts title under 65 chars with #{short_tag} #Shorts #ZyronByte",
+  "youtube_description": "Catchy YouTube video description with call to action for @ZyronByteYT and authentic hashtags",
+  "instagram_caption": "Engaging IG Reels caption with CTA and authentic hashtags",
+  "hashtags": {json.dumps(game_prof["hashtags"][:6])},
+  "keywords": {json.dumps(game_prof["keywords"][:6])}
 }}
 """
                 resp = client.models.generate_content(
@@ -538,12 +580,21 @@ Return valid JSON:
             except Exception as e:
                 logger.warning(f"Single clip metadata generation failed: {e}")
 
-        # Fallback metadata
+        # Fallback game-authentic metadata
+        yt_desc = (
+            game_prof["description_template"].format(
+                category_upper=category.upper(), clip_title=clip_title
+            )
+            + "\n\n"
+            + " ".join(game_prof["hashtags"])
+        )
+
         return {
-            "youtube_title": f"{clip_title} 🔥 #Shorts #Gaming #ZyronByte"[:95],
-            "instagram_caption": f"Wait till the end! 😱 Drop a like if you enjoyed this {category} play. Follow @ZyronByteYT!\n\n#gaming #Shorts #ZyronByte",
-            "hashtags": ["#gaming", "#gamer", "#Shorts", "#ZyronByte", f"#{category}"],
-            "keywords": ["gaming", category, "shorts", "zyronbyte"]
+            "youtube_title": f"{clip_title} 🔥 #{short_tag} #Shorts #ZyronByte"[:95],
+            "youtube_description": yt_desc,
+            "instagram_caption": game_prof["caption_template"].format(clip_title=clip_title),
+            "hashtags": game_prof["hashtags"],
+            "keywords": game_prof["keywords"] + [category, "shorts", "zyronbyte"]
         }
 
 gemini_service = GeminiAIService()

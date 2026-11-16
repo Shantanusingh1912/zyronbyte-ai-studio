@@ -24,6 +24,7 @@ class Video(Base):
     progress = Column(Float, default=0.0)  # 0 to 100
     current_step = Column(String(100), default="Initialized")
     error_message = Column(Text, nullable=True)
+    game_title = Column(String(100), nullable=True)
     
     transcript_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -40,6 +41,7 @@ class Clip(Base):
     
     # Highlight detection info
     title = Column(String(255), nullable=False)
+    game_title = Column(String(100), nullable=True)
     highlight_category = Column(String(50), default="action")  # "kill", "clutch", "funny", "reaction", "action", "unexpected"
     description = Column(Text, nullable=True)
     excitement_score = Column(Integer, default=85)  # 1-100

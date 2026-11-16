@@ -10,6 +10,7 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
   const [localPath, setLocalPath] = useState('');
   const [batchUrls, setBatchUrls] = useState('');
   const [fileToUpload, setFileToUpload] = useState(null);
+  const [gameTitle, setGameTitle] = useState('auto');
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +29,8 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
         const res = await api.importVideo({
           source_type: 'youtube',
           source_url: youtubeUrl,
-          title: videoTitle || undefined
+          title: videoTitle || undefined,
+          game_title: gameTitle !== 'auto' ? gameTitle : undefined
         });
         if (autoStart) {
           await api.startPipeline(res.id);
@@ -40,7 +42,8 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
         const res = await api.importVideo({
           source_type: 'local',
           local_file_path: localPath,
-          title: videoTitle || undefined
+          title: videoTitle || undefined,
+          game_title: gameTitle !== 'auto' ? gameTitle : undefined
         });
         if (autoStart) {
           await api.startPipeline(res.id);
@@ -52,6 +55,7 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
         const formData = new FormData();
         formData.append('file', fileToUpload);
         if (videoTitle) formData.append('title', videoTitle);
+        if (gameTitle !== 'auto') formData.append('game_title', gameTitle);
         
         const res = await api.uploadVideo(formData);
         if (autoStart) {
@@ -269,6 +273,34 @@ export default function VideoImporter({ isOpen, onClose, onImportSuccess }) {
               />
             </div>
           )}
+
+          {/* Game Profile Selector */}
+          <div className="p-3.5 rounded-xl bg-[#0A0D15] border border-[#232B3E] flex items-center justify-between">
+            <div>
+              <label className="block text-xs font-bold text-slate-200">
+                🎮 Target Game Profile
+              </label>
+              <p className="text-[11px] text-slate-400">
+                Determines authentic hashtags, game-specific vocabulary, and SEO tags
+              </p>
+            </div>
+            <select
+              value={gameTitle}
+              onChange={(e) => setGameTitle(e.target.value)}
+              className="bg-black/60 border border-white/20 text-xs font-bold text-amber-300 rounded-full px-4 py-2 focus:outline-none focus:border-amber-400 cursor-pointer"
+            >
+              <option value="auto">✨ Auto-Detect From Video</option>
+              <option value="Grand Theft Auto V">🚗 Grand Theft Auto V (GTA 5)</option>
+              <option value="BGMI / PUBG Mobile">🏆 BGMI / PUBG Mobile</option>
+              <option value="Valorant">🎯 Valorant</option>
+              <option value="Call of Duty: Warzone">💥 Call of Duty: Warzone</option>
+              <option value="Free Fire">🔥 Free Fire</option>
+              <option value="Minecraft">🪣 Minecraft</option>
+              <option value="Counter-Strike 2">💣 Counter-Strike 2 (CS2)</option>
+              <option value="Apex Legends">⚡ Apex Legends</option>
+              <option value="General Gaming">🎮 Other / Generic Gaming</option>
+            </select>
+          </div>
 
           {/* Auto Start Pipeline Checkbox */}
           <div className="flex items-center space-x-2 pt-2">

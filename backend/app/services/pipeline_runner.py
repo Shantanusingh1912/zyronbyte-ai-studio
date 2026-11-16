@@ -13,6 +13,7 @@ from .transcriber import transcriber
 from .gemini_ai import gemini_service
 from .video_editor import video_editor
 from .quality_control import quality_validator
+from .game_detector import game_detector
 
 logger = logging.getLogger("zyronbyte.pipeline")
 
@@ -94,6 +95,8 @@ class PipelineRunner:
                 dl_result = downloader.download_video_from_url(video.source_url, progress_hook=on_download_progress)
                 if dl_result.get("title") and (not video.title or video.title in ("YouTube Gaming Livestream", "Online Gaming Video", "Pending Video URL")):
                     video.title = dl_result["title"]
+                if not video.game_title or video.game_title in ("General Gaming", "auto"):
+                    video.game_title = game_detector.detect_game(video.title)["display_name"]
                 video.file_path = dl_result["file_path"]
                 video.duration = dl_result["duration"]
                 video.width = dl_result["width"]
@@ -103,6 +106,8 @@ class PipelineRunner:
 
             # Ensure metadata is fresh
             meta = downloader.get_video_metadata(video.file_path)
+            if not video.game_title:
+                video.game_title = game_detector.detect_game(video.title)["display_name"]
             video.duration = meta["duration"]
             video.width = meta["width"]
             video.height = meta["height"]
@@ -164,10 +169,12 @@ class PipelineRunner:
 
             meta["file_path"] = video.file_path
             meta["duration"] = video.duration
+            meta["title"] = video.title
+            meta["game_title"] = video.game_title
 
             self.log_event(
                 db, "INFO",
-                f"Analyzing video timeline ({video.duration / 60.0:.1f} mins) for {min_clips}-{max_clips} highlights across clutch, op_kill, rush, reaction & funny..."
+                f"Analyzing '{video.game_title}' video timeline ({video.duration / 60.0:.1f} mins) for {min_clips}-{max_clips} highlights across clutch, op_kill, rush, reaction & funny..."
             )
             highlights = gemini_service.detect_highlights(
                 video_metadata=meta,
@@ -179,7 +186,7 @@ class PipelineRunner:
                 configured_clips_setting=configured_clips
             )
 
-            self.log_event(db, "SUCCESS", f"Detected {len(highlights)} epic gaming highlights!")
+            self.log_event(db, "SUCCESS", f"Detected {len(highlights)} epic gaming highlights for '{video.game_title}'!")
 
             # ---------------------------------------------------------
             # STEP 4: Create Clip Records
@@ -197,6 +204,7 @@ class PipelineRunner:
             for h in highlights:
                 clip = Clip(
                     video_id=video.id,
+                    game_title=video.game_title,
                     title=h.get("title", "Epic Gaming Moment"),
                     highlight_category=h.get("category", "action"),
                     description=h.get("description", ""),
@@ -208,6 +216,7 @@ class PipelineRunner:
                     subtitles_enabled=True,
                     sfx_enabled=True,
                     youtube_title=h.get("youtube_title"),
+                    youtube_description=h.get("youtube_description") or h.get("description", ""),
                     instagram_caption=h.get("instagram_caption"),
                     hashtags=",".join(h.get("hashtags", [])) if isinstance(h.get("hashtags"), list) else str(h.get("hashtags", "")),
                     keywords=",".join(h.get("keywords", [])) if isinstance(h.get("keywords"), list) else str(h.get("keywords", "")),

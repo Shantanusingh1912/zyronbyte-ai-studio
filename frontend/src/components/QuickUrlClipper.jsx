@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sparkles, Link2, ArrowRight, Loader2, Play, CheckCircle, Video, Flame, Radio } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Link2, ArrowRight, Loader2, Play, CheckCircle, Video, Flame, Radio, Gamepad2 } from 'lucide-react';
 import { YoutubeIcon } from './Icons';
 import { api } from '../api';
 
@@ -8,8 +8,16 @@ export default function QuickUrlClipper({ onVideoImported }) {
   const [loading, setLoading] = useState(false);
   const [previewInfo, setPreviewInfo] = useState(null);
   const [fetchingPreview, setFetchingPreview] = useState(false);
+  const [selectedGame, setSelectedGame] = useState('auto');
+  const [supportedGames, setSupportedGames] = useState([]);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    api.getSupportedGames()
+      .then(games => setSupportedGames(games))
+      .catch(() => {});
+  }, []);
 
   // Handle URL change with auto preview fetch
   const handleUrlChange = async (e) => {
@@ -23,6 +31,9 @@ export default function QuickUrlClipper({ onVideoImported }) {
         setFetchingPreview(true);
         const info = await api.fetchVideoInfo(val);
         setPreviewInfo(info);
+        if (info?.detected_game) {
+          setSelectedGame(info.detected_game);
+        }
       } catch (err) {
         setPreviewInfo(null);
       } finally {
@@ -42,16 +53,19 @@ export default function QuickUrlClipper({ onVideoImported }) {
     setSuccessMsg('');
 
     try {
+      const finalGame = selectedGame !== 'auto' ? selectedGame : (previewInfo?.detected_game || undefined);
       const res = await api.importVideo({
         source_type: 'url',
         source_url: url.trim(),
         title: previewInfo?.title || undefined,
+        game_title: finalGame,
         auto_start: true
       });
 
-      setSuccessMsg(`Fetched "${res.title}"! Automated AI clipping pipeline is running.`);
+      setSuccessMsg(`Fetched "${res.title}" for ${res.game_title || 'Gaming'}! AI clipping pipeline is running.`);
       setUrl('');
       setPreviewInfo(null);
+      setSelectedGame('auto');
       if (onVideoImported) onVideoImported();
     } catch (err) {
       setErrorMsg(err.message || 'Failed to fetch and clip video URL');
@@ -120,7 +134,7 @@ export default function QuickUrlClipper({ onVideoImported }) {
         </div>
 
         {/* Apple Spotlight / Samsung Capsule Input Bar */}
-        <form onSubmit={handleFetchAndClip} className="w-full">
+        <form onSubmit={handleFetchAndClip} className="w-full space-y-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center bg-[#090a0f]/90 backdrop-blur-3xl border border-white/20 hover:border-white/30 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-500/20 rounded-full p-2 transition-all duration-300 shadow-2xl group">
             <div className="flex items-center flex-1 min-w-0 pl-4">
               <Link2 className="w-5 h-5 text-cyan-400 mr-3 flex-shrink-0" />
@@ -135,7 +149,7 @@ export default function QuickUrlClipper({ onVideoImported }) {
               {fetchingPreview && (
                 <span className="text-xs text-cyan-300 px-3 flex items-center space-x-2 flex-shrink-0 font-medium">
                   <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                  <span className="hidden sm:inline">Inspecting metadata...</span>
+                  <span className="hidden sm:inline">Inspecting metadata & game...</span>
                 </span>
               )}
             </div>
@@ -157,6 +171,39 @@ export default function QuickUrlClipper({ onVideoImported }) {
                 </>
               )}
             </button>
+          </div>
+
+          {/* Game Selection & Detection Pill Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-2">
+            <div className="flex items-center space-x-2.5">
+              <span className="text-xs font-bold text-zinc-300 flex items-center space-x-1.5">
+                <Gamepad2 className="w-4 h-4 text-amber-400" />
+                <span>Target Game:</span>
+              </span>
+              <select
+                value={selectedGame}
+                onChange={(e) => setSelectedGame(e.target.value)}
+                className="bg-black/60 border border-white/20 hover:border-white/30 text-xs font-bold text-amber-300 rounded-full px-4 py-1.5 focus:outline-none focus:border-amber-400 backdrop-blur-md cursor-pointer"
+              >
+                <option value="auto">✨ Auto-Detect From Video Title</option>
+                <option value="Grand Theft Auto V">🚗 Grand Theft Auto V (GTA 5)</option>
+                <option value="BGMI / PUBG Mobile">🏆 BGMI / PUBG Mobile</option>
+                <option value="Valorant">🎯 Valorant</option>
+                <option value="Call of Duty: Warzone">💥 Call of Duty: Warzone</option>
+                <option value="Free Fire">🔥 Free Fire</option>
+                <option value="Minecraft">🪣 Minecraft</option>
+                <option value="Counter-Strike 2">💣 Counter-Strike 2 (CS2)</option>
+                <option value="Apex Legends">⚡ Apex Legends</option>
+                <option value="General Gaming">🎮 Other / Generic Gaming</option>
+              </select>
+            </div>
+
+            {previewInfo?.detected_game && (
+              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-400/30 flex items-center space-x-1.5 animate-in fade-in duration-300">
+                <span>Detected:</span>
+                <span className="text-white font-extrabold">{previewInfo.detected_game}</span>
+              </span>
+            )}
           </div>
         </form>
 
@@ -180,7 +227,7 @@ export default function QuickUrlClipper({ onVideoImported }) {
                 <h4 className="font-bold text-white truncate text-sm sm:text-base">
                   {previewInfo.title}
                 </h4>
-                <div className="flex items-center space-x-3 text-xs text-zinc-400 mt-1">
+                <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-400 mt-1">
                   <span className="text-cyan-400 font-semibold">{previewInfo.uploader}</span>
                   {previewInfo.duration > 0 && (
                     <>
@@ -189,7 +236,9 @@ export default function QuickUrlClipper({ onVideoImported }) {
                     </>
                   )}
                   <span>•</span>
-                  <span className="text-emerald-400 font-medium">Ready for auto-clipping</span>
+                  <span className="text-amber-400 font-bold bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-md">
+                    🎮 {selectedGame !== 'auto' ? selectedGame : (previewInfo.detected_game || 'Gaming')}
+                  </span>
                 </div>
               </div>
             </div>
@@ -201,7 +250,7 @@ export default function QuickUrlClipper({ onVideoImported }) {
                 disabled={loading}
                 className="px-5 py-2 rounded-full bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold transition shadow-md shadow-cyan-500/30 flex items-center space-x-1.5 cursor-pointer"
               >
-                <span>Process Now</span>
+                <span>Clip {selectedGame !== 'auto' ? selectedGame : (previewInfo.detected_game || 'Game')}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

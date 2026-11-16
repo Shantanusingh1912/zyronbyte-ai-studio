@@ -59,6 +59,8 @@ def update_clip_metadata(clip_id: int, update_data: ClipUpdateMetadata, db: Sess
         clip.instagram_caption = update_data.instagram_caption
     if update_data.hashtags is not None:
         clip.hashtags = update_data.hashtags
+    if update_data.game_title is not None:
+        clip.game_title = update_data.game_title
     if update_data.crop_mode is not None:
         clip.crop_mode = update_data.crop_mode
     if update_data.subtitles_enabled is not None:
@@ -88,10 +90,16 @@ def create_custom_cut(req: ManualClipCreateRequest, db: Session = Depends(get_db
         raise HTTPException(status_code=400, detail="End time must be greater than start time")
 
     duration = round(end_t - start_t, 2)
-    meta = gemini_service.generate_single_clip_metadata(req.title or "Custom Gaming Cut", req.highlight_category or "action")
+    resolved_game = req.game_title or video.game_title or "General Gaming"
+    meta = gemini_service.generate_single_clip_metadata(
+        clip_title=req.title or "Custom Gaming Cut",
+        category=req.highlight_category or "action",
+        game_title=resolved_game
+    )
 
     clip = Clip(
         video_id=video.id,
+        game_title=resolved_game,
         title=req.title or "Custom Gaming Cut",
         highlight_category=req.highlight_category or "action",
         start_time=start_t,
@@ -101,6 +109,7 @@ def create_custom_cut(req: ManualClipCreateRequest, db: Session = Depends(get_db
         subtitles_enabled=req.subtitles_enabled,
         sfx_enabled=req.sfx_enabled,
         youtube_title=meta.get("youtube_title"),
+        youtube_description=meta.get("youtube_description"),
         instagram_caption=meta.get("instagram_caption"),
         hashtags=",".join(meta.get("hashtags", [])) if isinstance(meta.get("hashtags"), list) else str(meta.get("hashtags", "")),
         keywords=",".join(meta.get("keywords", [])) if isinstance(meta.get("keywords"), list) else str(meta.get("keywords", "")),
@@ -255,6 +264,39 @@ def schedule_clip(clip_id: int, req: PublishRequest, db: Session = Depends(get_d
     db.commit()
 
     return {"message": "Clip scheduled successfully", "scheduled_time": req.schedule_time}
+
+@router.post("/{clip_id}/regenerate-metadata", response_model=ClipResponse)
+def regenerate_clip_metadata(
+    clip_id: int, 
+    game_title: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Regenerates YouTube title, description, Instagram caption, and hashtags tailored to a specific game."""
+    clip = db.query(Clip).filter(Clip.id == clip_id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    video = clip.video
+    resolved_game = game_title or clip.game_title or (video.game_title if video else "General Gaming")
+
+    meta = gemini_service.generate_single_clip_metadata(
+        clip_title=clip.title,
+        category=clip.highlight_category or "action",
+        game_title=resolved_game
+    )
+
+    clip.game_title = resolved_game
+    clip.youtube_title = meta.get("youtube_title")
+    clip.youtube_description = meta.get("youtube_description")
+    clip.instagram_caption = meta.get("instagram_caption")
+    if meta.get("hashtags"):
+        clip.hashtags = ",".join(meta["hashtags"]) if isinstance(meta["hashtags"], list) else str(meta["hashtags"])
+    if meta.get("keywords"):
+        clip.keywords = ",".join(meta["keywords"]) if isinstance(meta["keywords"], list) else str(meta["keywords"])
+
+    db.commit()
+    db.refresh(clip)
+    return clip
 
 @router.get("/{clip_id}/stream")
 def stream_clip_video(clip_id: int, db: Session = Depends(get_db)):

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Play, Pause, Volume2, 
   ShieldCheck, AlertTriangle, CheckCircle, RefreshCw, 
-  Send, Calendar, Clock, Edit3, Tag, Layers, Film, Scissors 
+  Send, Calendar, Clock, Edit3, Tag, Layers, Film, Scissors,
+  Sparkles, Gamepad2 
 } from 'lucide-react';
 import { YoutubeIcon, InstagramIcon } from './Icons';
 import { api } from '../api';
@@ -20,11 +21,13 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
   const [cropMode, setCropMode] = useState(clip.crop_mode || 'blur_fill');
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(clip.subtitles_enabled ?? true);
   const [sfxEnabled, setSfxEnabled] = useState(clip.sfx_enabled ?? true);
+  const [clipGame, setClipGame] = useState(clip.game_title || 'General Gaming');
   
   const [scheduleTime, setScheduleTime] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isRerendering, setIsRerendering] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     setStartTime(clip.start_time ?? 0.0);
@@ -36,6 +39,7 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
     setCropMode(clip.crop_mode || 'blur_fill');
     setSubtitlesEnabled(clip.subtitles_enabled ?? true);
     setSfxEnabled(clip.sfx_enabled ?? true);
+    setClipGame(clip.game_title || 'General Gaming');
   }, [clip]);
 
   let qcData = null;
@@ -53,12 +57,31 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const handleRegenerateGameMetadata = async () => {
+    setIsRegenerating(true);
+    try {
+      const updated = await api.regenerateClipMetadata(clip.id, clipGame);
+      setYtTitle(updated.youtube_title || '');
+      setYtDesc(updated.youtube_description || '');
+      setYtTags(updated.youtube_tags || '');
+      setIgCaption(updated.instagram_caption || '');
+      setClipGame(updated.game_title || clipGame);
+      alert(`AI metadata refreshed specifically for ${clipGame}!`);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert(`Regeneration failed: ${err.message}`);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const handleSaveMetadata = async () => {
     setIsSaving(true);
     try {
       await api.updateClipMetadata(clip.id, {
         start_time: parseFloat(startTime),
         end_time: parseFloat(endTime),
+        game_title: clipGame,
         youtube_title: ytTitle,
         youtube_description: ytDesc,
         youtube_tags: ytTags,
@@ -198,6 +221,39 @@ export default function ClipPreviewModal({ clip, isOpen, onClose, onRefresh }) {
           {/* Column 2: Metadata Editor & Social Publishing Controls */}
           <div className="md:col-span-7 flex flex-col bg-[#121622]">
             
+            {/* Game Profile & Instant AI Captions Regenerator Bar */}
+            <div className="px-5 py-3 bg-[#0a0d15] border-b border-[#1E2536] flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-2">
+                <Gamepad2 className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-bold text-slate-300">Game Profile:</span>
+                <select
+                  value={clipGame}
+                  onChange={(e) => setClipGame(e.target.value)}
+                  className="bg-black/60 border border-white/20 text-xs font-bold text-amber-300 rounded-full px-3 py-1 focus:outline-none focus:border-amber-400 cursor-pointer"
+                >
+                  <option value="Grand Theft Auto V">🚗 Grand Theft Auto V (GTA 5)</option>
+                  <option value="BGMI / PUBG Mobile">🏆 BGMI / PUBG Mobile</option>
+                  <option value="Valorant">🎯 Valorant</option>
+                  <option value="Call of Duty: Warzone">💥 Call of Duty: Warzone</option>
+                  <option value="Free Fire">🔥 Free Fire</option>
+                  <option value="Minecraft">🪣 Minecraft</option>
+                  <option value="Counter-Strike 2">💣 Counter-Strike 2 (CS2)</option>
+                  <option value="Apex Legends">⚡ Apex Legends</option>
+                  <option value="General Gaming">🎮 Other / Generic Gaming</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                disabled={isRegenerating}
+                onClick={handleRegenerateGameMetadata}
+                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-extrabold flex items-center space-x-1.5 shadow-md shadow-cyan-500/20 disabled:opacity-50 cursor-pointer transition active:scale-95"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                <span>{isRegenerating ? 'Generating...' : `Regenerate Captions for ${clipGame}`}</span>
+              </button>
+            </div>
+
             {/* Tabs */}
             <div className="flex border-b border-[#1E2536] bg-[#0E121B] px-6 overflow-x-auto">
               <button

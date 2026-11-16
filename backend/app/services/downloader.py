@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 import yt_dlp
 from ..config import settings
+from .game_detector import game_detector
 
 logger = logging.getLogger("zyronbyte.downloader")
 
@@ -72,13 +73,17 @@ class VideoDownloader:
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
+                raw_title = info.get("title", "Online Gaming Video")
+                detected = game_detector.detect_game(raw_title)
                 return {
-                    "title": info.get("title", "Online Gaming Video"),
+                    "title": raw_title,
                     "duration": float(info.get("duration") or 0.0),
                     "thumbnail": info.get("thumbnail"),
                     "uploader": info.get("uploader") or info.get("channel", "Creator"),
                     "webpage_url": info.get("webpage_url", url),
-                    "extractor": info.get("extractor", "generic")
+                    "extractor": info.get("extractor", "generic"),
+                    "detected_game": detected["display_name"],
+                    "game_key": detected["key"]
                 }
         except Exception as e:
             logger.warning(f"Could not pre-fetch video info for {url}: {e}")
@@ -88,7 +93,9 @@ class VideoDownloader:
                 "thumbnail": None,
                 "uploader": "Online Creator",
                 "webpage_url": url,
-                "extractor": "generic"
+                "extractor": "generic",
+                "detected_game": "General Gaming",
+                "game_key": "generic_gaming"
             }
 
     @staticmethod
@@ -161,6 +168,7 @@ class VideoDownloader:
         meta = VideoDownloader.get_video_metadata(str(src_path))
         
         video_title = title or src_path.stem
+        detected = game_detector.detect_game(video_title)
         dest_filename = f"{src_path.stem}_{int(meta['duration'])}s{src_path.suffix}"
         dest_path = settings.IMPORTS_PATH / dest_filename
         
@@ -169,6 +177,8 @@ class VideoDownloader:
         
         return {
             "title": video_title,
+            "detected_game": detected["display_name"],
+            "game_key": detected["key"],
             "file_path": str(dest_path),
             "source_url": None,
             "duration": meta["duration"],

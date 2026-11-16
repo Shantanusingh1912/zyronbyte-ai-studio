@@ -4,6 +4,7 @@ from datetime import datetime
 
 class VideoImportRequest(BaseModel):
     title: Optional[str] = None
+    game_title: Optional[str] = None
     source_type: str = "url"  # "url", "youtube", "local"
     source_url: Optional[str] = None
     local_file_path: Optional[str] = None
@@ -15,6 +16,7 @@ class VideoBatchImportRequest(BaseModel):
 class VideoResponse(BaseModel):
     id: int
     title: str
+    game_title: Optional[str] = None
     source_type: str
     source_url: Optional[str] = None
     file_path: str
@@ -38,6 +40,7 @@ class ClipUpdateMetadata(BaseModel):
     youtube_tags: Optional[str] = None
     instagram_caption: Optional[str] = None
     hashtags: Optional[str] = None
+    game_title: Optional[str] = None
     crop_mode: Optional[str] = None
     subtitles_enabled: Optional[bool] = None
     sfx_enabled: Optional[bool] = None
@@ -47,6 +50,7 @@ class ClipUpdateMetadata(BaseModel):
 class ManualClipCreateRequest(BaseModel):
     video_id: int
     title: Optional[str] = "Custom Gaming Cut"
+    game_title: Optional[str] = None
     highlight_category: Optional[str] = "action"
     start_time: float
     end_time: float
@@ -58,6 +62,7 @@ class ClipResponse(BaseModel):
     id: int
     video_id: int
     title: str
+    game_title: Optional[str] = None
     highlight_category: str
     description: Optional[str] = None
     excitement_score: int

@@ -15,6 +15,12 @@ export const api = {
     return res.json();
   },
 
+  getSupportedGames: async () => {
+    const res = await fetch(`${API_BASE}/videos/supported-games`);
+    if (!res.ok) throw new Error('Failed to fetch supported games');
+    return res.json();
+  },
+
   fetchVideoInfo: async (url) => {
     const res = await fetch(`${API_BASE}/videos/fetch-info?url=${encodeURIComponent(url)}`);
     if (!res.ok) throw new Error('Failed to fetch video preview');
@@ -76,6 +82,15 @@ export const api = {
       body: JSON.stringify(data)
     });
     if (!res.ok) throw new Error('Failed to update clip');
+    return res.json();
+  },
+
+  regenerateClipMetadata: async (clipId, gameTitle = '') => {
+    const query = gameTitle ? `?game_title=${encodeURIComponent(gameTitle)}` : '';
+    const res = await fetch(`${API_BASE}/clips/${clipId}/regenerate-metadata${query}`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error('Failed to regenerate metadata');
     return res.json();
   },
 

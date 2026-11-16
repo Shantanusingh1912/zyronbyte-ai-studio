@@ -9,6 +9,7 @@ from ..models import Video, Clip, SystemLog
 from ..schemas import VideoImportRequest, VideoBatchImportRequest, VideoResponse
 from ..services.downloader import downloader
 from ..services.pipeline_runner import pipeline_runner
+from ..services.game_detector import game_detector
 from ..config import settings
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
@@ -22,6 +23,7 @@ def get_videos(db: Session = Depends(get_db)):
         results.append(VideoResponse(
             id=v.id,
             title=v.title,
+            game_title=v.game_title,
             source_type=v.source_type,
             source_url=v.source_url,
             file_path=v.file_path,
@@ -38,9 +40,14 @@ def get_videos(db: Session = Depends(get_db)):
         ))
     return results
 
+@router.get("/supported-games")
+def get_supported_games():
+    """Returns all supported games and options for creator dropdowns."""
+    return game_detector.get_supported_games()
+
 @router.get("/fetch-info")
 def fetch_video_info(url: str):
-    """Fetches video metadata (title, duration, thumbnail, author) from any video URL."""
+    """Fetches video metadata (title, duration, thumbnail, author, detected game) from any video URL."""
     if not url:
         raise HTTPException(status_code=400, detail="url parameter is required")
     info = downloader.fetch_video_info(url)
@@ -55,6 +62,7 @@ def get_video(video_id: int, db: Session = Depends(get_db)):
     return VideoResponse(
         id=video.id,
         title=video.title,
+        game_title=video.game_title,
         source_type=video.source_type,
         source_url=video.source_url,
         file_path=video.file_path,
@@ -82,16 +90,25 @@ def import_video(req: VideoImportRequest, db: Session = Depends(get_db)):
         # Pre-fetch video metadata if title wasn't provided
         final_title = req.title
         est_duration = 0.0
-        if not final_title:
+        detected_game = req.game_title
+        if not final_title or not detected_game or detected_game.lower() in ("auto", "auto-detect"):
             try:
                 info = downloader.fetch_video_info(req.source_url)
-                final_title = info.get("title") or "Online Gaming Video"
+                if not final_title:
+                    final_title = info.get("title") or "Online Gaming Video"
+                if not detected_game or detected_game.lower() in ("auto", "auto-detect"):
+                    detected_game = info.get("detected_game")
                 est_duration = float(info.get("duration") or 0.0)
             except Exception:
-                final_title = "Online Gaming Video"
+                if not final_title:
+                    final_title = "Online Gaming Video"
+
+        if not detected_game or detected_game.lower() in ("auto", "auto-detect"):
+            detected_game = game_detector.detect_game(final_title)["display_name"]
 
         video = Video(
             title=final_title or "Online Gaming Video",
+            game_title=detected_game,
             source_type="url",
             source_url=req.source_url,
             file_path="",
@@ -109,6 +126,7 @@ def import_video(req: VideoImportRequest, db: Session = Depends(get_db)):
         return VideoResponse(
             id=video.id,
             title=video.title,
+            game_title=video.game_title,
             source_type=video.source_type,
             source_url=video.source_url,
             file_path=video.file_path,
@@ -130,8 +148,13 @@ def import_video(req: VideoImportRequest, db: Session = Depends(get_db)):
         
         try:
             imported = downloader.import_local_file(req.local_file_path, title=req.title)
+            final_game = req.game_title
+            if not final_game or final_game.lower() in ("auto", "auto-detect"):
+                final_game = imported.get("detected_game") or game_detector.detect_game(imported["title"])["display_name"]
+
             video = Video(
                 title=imported["title"],
+                game_title=final_game,
                 source_type="local",
                 file_path=imported["file_path"],
                 duration=imported["duration"],
@@ -151,6 +174,7 @@ def import_video(req: VideoImportRequest, db: Session = Depends(get_db)):
             return VideoResponse(
                 id=video.id,
                 title=video.title,
+                game_title=video.game_title,
                 source_type=video.source_type,
                 source_url=video.source_url,
                 file_path=video.file_path,
@@ -172,6 +196,7 @@ def import_video(req: VideoImportRequest, db: Session = Depends(get_db)):
 async def upload_local_file(
     file: UploadFile = File(...),
     title: Optional[str] = Form(None),
+    game_title: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """Directly uploads a local gaming video from the browser dashboard."""
@@ -180,8 +205,14 @@ async def upload_local_file(
         shutil.copyfileobj(file.file, buffer)
     
     meta = downloader.get_video_metadata(str(dest_path))
+    v_title = title or Path(file.filename).stem
+    v_game = game_title
+    if not v_game or v_game.lower() in ("auto", "auto-detect"):
+        v_game = game_detector.detect_game(v_title)["display_name"]
+
     video = Video(
-        title=title or Path(file.filename).stem,
+        title=v_title,
+        game_title=v_game,
         source_type="local",
         file_path=str(dest_path),
         duration=meta["duration"],
@@ -197,6 +228,7 @@ async def upload_local_file(
     return VideoResponse(
         id=video.id,
         title=video.title,
+        game_title=video.game_title,
         source_type=video.source_type,
         source_url=video.source_url,
         file_path=video.file_path,

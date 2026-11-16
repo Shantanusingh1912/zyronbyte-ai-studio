@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from .config import settings
 
@@ -20,3 +20,16 @@ def get_db():
 def init_db():
     from . import models
     Base.metadata.create_all(bind=engine)
+    
+    # Safely migrate existing SQLite database tables
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE videos ADD COLUMN game_title VARCHAR(100)"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE clips ADD COLUMN game_title VARCHAR(100)"))
+            conn.commit()
+        except Exception:
+            pass

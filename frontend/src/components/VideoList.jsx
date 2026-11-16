@@ -96,6 +96,11 @@ export default function VideoList({ videos, onSelectVideo, selectedVideoId, onRe
                     <h4 className="text-xs sm:text-sm font-bold text-white truncate max-w-lg">
                       {v.title}
                     </h4>
+                    {v.game_title && (
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-400/30">
+                        🎮 {v.game_title}
+                      </span>
+                    )}
                     {v.clips_count > 0 && (
                       <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
                         {v.clips_count} Shorts
